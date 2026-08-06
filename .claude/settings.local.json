@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm -v)",
+      "Bash(where.exe node *)",
+      "Bash(where.exe npm *)",
+      "Read(//c/Program Files/**)",
+      "Read(//c/Users/dmfosu/AppData/Roaming/**)",
+      "PowerShell($env:Path = [System.Environment]::GetEnvironmentVariable\\(\"Path\",\"Machine\"\\) + \";\" + [System.Environment]::GetEnvironmentVariable\\(\"Path\",\"User\"\\); node -v; npm -v)",
+      "PowerShell(node -v)",
+      "PowerShell(npm -v)"
+    ]
+  }
+}
