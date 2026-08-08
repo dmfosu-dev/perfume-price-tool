@@ -1,0 +1,8 @@
+brand,variant,size_ml,concentration,gender,brand_code,variant_code,notes
+Lattafa Perfumes,Khamrah Qahwa,100,EDP,unisex,LAT,KHAMRAH-QAHWA,Already in the catalogue - will be skipped
+Armaf,Club de Nuit Intense Man (EDT),150,EDT,male,ARM,CDNIM,New size for an existing variant
+Rasasi,Hawas Ice for Him,50,EDP,male,RAS,HAWAS-ICE,Smaller travel size
+Ard Al Zaafaran,Musk Al Tahara,100,EDP,unisex,ARZ,MUSK-AL-TAHARA,New brand and variant
+Ard Al Zaafaran,Musk Al Tahara,50,EDP,unisex,ARZ,MUSK-AL-TAHARA,Second size of the same variant
+Maison Alhambra,Jean Lowe Ombre,100,EDP,male,,,"Codes omitted on purpose - they are generated"
+Paris Corner,Emir Rouge,100,Extrait,unisex,PCR,EMIR-ROUGE,"Extrait concentration, quoted with a comma in the note"

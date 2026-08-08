@@ -1,26 +1,69 @@
 @import "tailwindcss";
 
+/* Design tokens. One accent (indigo) against a warm-neutral surface stack, in
+   the vein of Zoho Inventory and similar back-office tools: dense, calm, and
+   heavy on hierarchy rather than colour. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --background: #f6f7f9;
+  --surface: #ffffff;
+  --surface-sunken: #f1f2f5;
+  --border: #e3e5ea;
+  --border-strong: #cfd3db;
+  --foreground: #15181f;
+  --muted: #5c6473;
+  --muted-soft: #8b93a3;
+  --accent: #4f46e5;
+  --accent-hover: #4338ca;
+  --accent-soft: #eef2ff;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #0b0d12;
+    --surface: #14171f;
+    --surface-sunken: #0f1219;
+    --border: #242833;
+    --border-strong: #333949;
+    --foreground: #eef0f4;
+    --muted: #9aa2b2;
+    --muted-soft: #6b7385;
+    --accent: #818cf8;
+    --accent-hover: #a5b4fc;
+    --accent-soft: #1e1b4b;
   }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-line: var(--border);
+  --color-line-strong: var(--border-strong);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-soft: var(--muted-soft);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Tabular figures everywhere money or counts appear, so columns line up. */
+.nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Consistent focus ring across every interactive control. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 0.5rem;
 }

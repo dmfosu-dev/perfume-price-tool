@@ -1,0 +1,387 @@
+// Perfume Price & Inventory Tool — data model
+// See PERFUME_PRICE_TOOL_SPEC.md §2, plus the schema-affecting items from
+// EXTRA_FEATURES.md folded in ahead of auth/UI (see spec §8 Addenda).
+//
+// Enum-valued columns are stored as String rather than Postgres enums. The
+// allowed values live in src/lib/enums.ts and are the single source of truth.
+// Kept as String deliberately: adding a value to a Postgres enum needs a
+// migration and cannot run inside a transaction with other changes, whereas
+// these sets (currencies, statuses) are expected to grow.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String
+  role         String    @default("intermediary")
+  status       String    @default("pending")
+  createdAt    DateTime  @default(now())
+  approvedAt   DateTime?
+  approvedById String?
+  lastLoginAt  DateTime?
+  /// Set on any reject/suspend/revoke/reinstate, so the admin user list can
+  /// show when access last changed. approvedAt/approvedById stay as spec §2.
+  statusChangedAt   DateTime?
+  statusChangedById String?
+
+  approvedBy    User?  @relation("UserApprovals", fields: [approvedById], references: [id])
+  approvedUsers User[] @relation("UserApprovals")
+  statusChangedBy    User?  @relation("UserStatusChanges", fields: [statusChangedById], references: [id])
+  statusChangesMade  User[] @relation("UserStatusChanges")
+  sessions           Session[]
+
+  updatedSkus    Sku[] @relation("SkuLastUpdatedBy")
+  verifiedSkus   Sku[] @relation("SkuLastVerifiedBy")
+  prioritisedSkus Sku[] @relation("SkuPrioritySetBy")
+  localStockSkus Sku[] @relation("SkuLocalStockUpdatedBy")
+
+  priceChanges           PriceHistory[]
+  fxRates                FxRate[]
+  vendorsCreated         Vendor[]
+  discrepanciesReported  DiscrepancyReport[] @relation("DiscrepancyReportedBy")
+  discrepanciesResolved  DiscrepancyReport[] @relation("DiscrepancyResolvedBy")
+  conflictsRaised        PriceConflict[]     @relation("ConflictIncomingBy")
+  conflictsAgainst       PriceConflict[]     @relation("ConflictExistingBy")
+  conflictsResolved      PriceConflict[]     @relation("ConflictResolvedBy")
+  competitorPrices       CompetitorPrice[]
+  costAssumptions        CostAssumption[]
+  fxSettingUpdates       FxSetting[]
+
+  @@index([status])
+}
+
+/// Server-side sessions, so an admin suspending or revoking an account cuts off
+/// live logins immediately. Only the SHA-256 of the cookie token is stored, so a
+/// database leak does not hand over usable sessions.
+model Session {
+  id        String   @id @default(uuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Brand {
+  id        String   @id @default(uuid())
+  code      String   @unique
+  name      String   @unique
+  sortOrder Int      @default(0)
+  /// Archived brands stay in the database so history keeps its context; they
+  /// are simply hidden from the dashboard and export.
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  variants Variant[]
+
+  @@index([sortOrder])
+}
+
+model Variant {
+  id        String   @id @default(uuid())
+  brandId   String
+  code      String
+  name      String
+  gender    String
+  notes     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  brand            Brand             @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  skus             Sku[]
+  competitorPrices CompetitorPrice[]
+
+  @@unique([brandId, name])
+  @@index([brandId])
+}
+
+model Sku {
+  id            String @id @default(uuid())
+  variantId     String
+  skuCode       String @unique
+  sizeMl        Int
+  concentration String
+
+  /// Per-bottle source price, in `priceCurrency`. Nullable until first entry.
+  singlePrice Decimal?
+  /// Total price when bought by the carton, same currency as singlePrice.
+  cartonPrice Decimal?
+  /// Bottles per carton that cartonPrice refers to, e.g. 12.
+  cartonQty   Int?
+  /// Fewest units this vendor will sell at this price. Distinct from cartonQty:
+  /// a carton may be 12 while the vendor refuses any order under 24.
+  minimumOrderQty Int?
+  /// Archived sizes are hidden without deleting their price history.
+  isActive Boolean @default(true)
+
+  /// Currency these prices were quoted in. Shops price in their own currency —
+  /// an intermediary in Dubai enters AED, one in Riyadh enters SAR — so this is
+  /// recorded rather than assumed. Null while the SKU has no price.
+  priceCurrency String?
+
+  /// Source-side (KSA) availability, as reported by the intermediary.
+  /// Distinct from localStockQty, which is our own Ghana-side inventory.
+  stockStatus String  @default("unknown")
+  photoUrl    String?
+
+  /// Admin "bounty": pin this SKU to the top of the intermediary dashboard.
+  isPriority     Boolean   @default(false)
+  priorityNote   String?
+  prioritySetAt  DateTime?
+  prioritySetById String?
+
+  /// Admin-maintained local stock level. Deliberately separate from any
+  /// customer/order data (spec §7). Null means "never recorded".
+  localStockQty          Int?
+  localStockUpdatedAt    DateTime?
+  localStockUpdatedById  String?
+
+  lastUpdatedAt   DateTime?
+  lastUpdatedById String?
+  /// Bumped by "Verify Price" when the market price is confirmed unchanged.
+  lastVerifiedAt   DateTime?
+  lastVerifiedById String?
+
+  createdAt DateTime @default(now())
+
+  variant             Variant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  lastUpdatedBy       User?   @relation("SkuLastUpdatedBy", fields: [lastUpdatedById], references: [id])
+  lastVerifiedBy      User?   @relation("SkuLastVerifiedBy", fields: [lastVerifiedById], references: [id])
+  prioritySetBy       User?   @relation("SkuPrioritySetBy", fields: [prioritySetById], references: [id])
+  localStockUpdatedBy User?   @relation("SkuLocalStockUpdatedBy", fields: [localStockUpdatedById], references: [id])
+
+  history          PriceHistory[]
+  discrepancies    DiscrepancyReport[]
+  competitorPrices CompetitorPrice[]
+  conflicts        PriceConflict[]
+
+  @@unique([variantId, sizeMl, concentration])
+  @@index([variantId])
+  @@index([lastUpdatedAt])
+  @@index([isPriority])
+  @@index([stockStatus])
+}
+
+/// A wholesale market, shop, or supplier a price was sourced from.
+/// Referenced rather than free-typed so history can be grouped by vendor.
+model Vendor {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  location    String?
+  notes       String?
+  isActive    Boolean  @default(true)
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  createdBy    User?          @relation(fields: [createdById], references: [id])
+  priceEntries PriceHistory[]
+
+  @@index([isActive])
+}
+
+/// Append-only. Rows are never updated or deleted.
+model PriceHistory {
+  id    String @id @default(uuid())
+  skuId String
+
+  singlePrice     Decimal?
+  cartonPrice     Decimal?
+  cartonQty       Int?
+  minimumOrderQty Int?
+  /// Currency this entry was quoted in.
+  priceCurrency   String?
+  /// What the price was worth when entered, captured because rates move and
+  /// this table is append-only — it cannot be reconstructed later.
+  fxBaseCurrency String?
+  fxRateToBase   Decimal?
+
+  stockStatus String
+  /// "price_change" for a real edit, "verification" for a one-tap confirmation
+  /// that the price is unchanged. The default history view hides verifications.
+  entryType   String   @default("price_change")
+  /// Where this price was found.
+  vendorId    String?
+  /// Photo of a receipt or written quote backing this entry.
+  receiptImageUrl String?
+
+  changedById String
+  changedAt   DateTime @default(now())
+  source      String   @default("online")
+
+  sku       Sku     @relation(fields: [skuId], references: [id], onDelete: Cascade)
+  changedBy User    @relation(fields: [changedById], references: [id])
+  vendor    Vendor? @relation(fields: [vendorId], references: [id])
+
+  @@index([skuId, changedAt])
+  @@index([changedAt])
+  @@index([entryType])
+  @@index([vendorId])
+}
+
+/// Spec §3.3: when an offline edit arrives for a SKU that someone else changed
+/// in the meantime, neither value is thrown away. The SKU keeps its confirmed
+/// value and both sides are recorded here for an admin to choose between.
+model PriceConflict {
+  id    String @id @default(uuid())
+  skuId String
+
+  /// What the offline device tried to save.
+  incomingSinglePrice     Decimal?
+  incomingCartonPrice     Decimal?
+  incomingCartonQty       Int?
+  incomingMinimumOrderQty Int?
+  incomingPriceCurrency   String?
+  incomingStockStatus     String
+  incomingById            String
+  /// When the edit was made on the device, not when it managed to sync.
+  incomingAt              DateTime
+  /// The SKU's lastUpdatedAt as the device knew it — the basis of the clash.
+  baseUpdatedAt           DateTime?
+
+  /// What the server held at sync time. This is the value that stays in force.
+  existingSinglePrice     Decimal?
+  existingCartonPrice     Decimal?
+  existingCartonQty       Int?
+  existingMinimumOrderQty Int?
+  existingPriceCurrency   String?
+  existingStockStatus     String
+  existingById            String?
+  existingAt              DateTime?
+
+  /// open | kept_existing | took_incoming
+  status       String    @default("open")
+  resolvedById String?
+  resolvedAt   DateTime?
+  createdAt    DateTime  @default(now())
+
+  sku        Sku   @relation(fields: [skuId], references: [id], onDelete: Cascade)
+  incomingBy User  @relation("ConflictIncomingBy", fields: [incomingById], references: [id])
+  existingBy User? @relation("ConflictExistingBy", fields: [existingById], references: [id])
+  resolvedBy User? @relation("ConflictResolvedBy", fields: [resolvedById], references: [id])
+
+  @@index([status])
+  @@index([skuId])
+}
+
+/// Intermediary-raised naming/size problems, routed to an admin review queue.
+/// Replaces the earlier single Sku.discrepancyNote field, which could not hold
+/// an author, a status, or more than one open report.
+model DiscrepancyReport {
+  id             String    @id @default(uuid())
+  skuId          String
+  note           String
+  status         String    @default("open")
+  reportedById   String
+  reportedAt     DateTime  @default(now())
+  resolvedById   String?
+  resolvedAt     DateTime?
+  resolutionNote String?
+
+  sku        Sku   @relation(fields: [skuId], references: [id], onDelete: Cascade)
+  reportedBy User  @relation("DiscrepancyReportedBy", fields: [reportedById], references: [id])
+  resolvedBy User? @relation("DiscrepancyResolvedBy", fields: [resolvedById], references: [id])
+
+  @@index([status])
+  @@index([skuId])
+}
+
+/// Admin-logged competitor retail prices, for arbitrage comparison.
+/// Recorded against a variant; skuId narrows it to a size when known.
+model CompetitorPrice {
+  id           String   @id @default(uuid())
+  variantId    String
+  skuId        String?
+  competitor   String
+  price        Decimal
+  currency     String
+  observedAt   DateTime @default(now())
+  notes        String?
+  recordedById String?
+  createdAt    DateTime @default(now())
+
+  variant    Variant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  sku        Sku?    @relation(fields: [skuId], references: [id], onDelete: SetNull)
+  recordedBy User?   @relation(fields: [recordedById], references: [id])
+
+  @@index([variantId, observedAt])
+  @@index([competitor])
+}
+
+/// Admin-only inputs for landed-cost and margin simulation (spec §7 as amended).
+/// Newest row by effectiveFrom is active; older rows are kept for auditability.
+model CostAssumption {
+  id                 String   @id @default(uuid())
+  label              String?
+  shippingPerUnitSar Decimal?
+  shippingPerKgSar   Decimal?
+  customsRatePct     Decimal?
+  otherFeesSar       Decimal?
+  targetMarginPct    Decimal?
+  effectiveFrom      DateTime @default(now())
+  setById            String?
+  createdAt          DateTime @default(now())
+
+  setBy User? @relation(fields: [setById], references: [id])
+
+  @@index([effectiveFrom])
+}
+
+/// Single-row configuration for FX (spec §3.6). Uses a fixed id so there can
+/// only ever be one row.
+model FxSetting {
+  id                   String   @id @default("singleton")
+  /// exchangerate_api | wise | manual
+  source               String   @default("exchangerate_api")
+  /// Currency all stored rates are expressed from. Admin-selectable.
+  baseCurrency         String   @default("USD")
+  /// Default currency the dashboard offers for price entry. Intermediaries can
+  /// switch per session when a shop quotes in something else.
+  priceEntryCurrency   String   @default("SAR")
+  /// JSON array of currency codes to fetch and display. SQLite has no array
+  /// type. Only these are ever requested, keeping payloads and rows small.
+  selectedCurrencies   String   @default("[\"USD\",\"SAR\",\"GHS\",\"AED\"]")
+  /// Only meaningful for the automatic sources.
+  refreshIntervalHours Int      @default(24)
+  /// Outcome of the last automatic fetch. lastFetchError being set is what
+  /// drives the "rates are stale" warning, per the §3.6 fallback rule.
+  lastFetchAt          DateTime?
+  lastFetchError       String?
+  updatedAt            DateTime @updatedAt
+  updatedById          String?
+
+  updatedBy User? @relation(fields: [updatedById], references: [id])
+}
+
+/// Append-only rate snapshots. The newest row per (baseCurrency, currency) is
+/// the live rate, so changing the base does not destroy the previous set.
+model FxRate {
+  id           String   @id @default(uuid())
+  /// Currency the rate is expressed from, e.g. "USD".
+  baseCurrency String   @default("USD")
+  /// Target currency.
+  currency     String
+  /// 1 baseCurrency buys this many of `currency`.
+  rate         Decimal
+  source       String
+  fetchedAt    DateTime @default(now())
+  setById      String?
+
+  setBy User? @relation(fields: [setById], references: [id])
+
+  @@index([baseCurrency, currency, fetchedAt])
+  @@index([fetchedAt])
+}
