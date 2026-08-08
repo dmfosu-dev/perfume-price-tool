@@ -4,7 +4,7 @@ import { getCatalogueSnapshot } from "@/lib/catalogue";
 import { getFxStatus } from "@/lib/fx";
 import { PriceDashboard } from "./PriceDashboard";
 
-export const metadata = { title: "Catalogue · Perfume Price Tool" };
+export const metadata = { title: "Catalogue · Aromatic Ghana" };
 
 export default async function DashboardPage() {
   const user = await requireApprovedUser();
@@ -25,13 +25,12 @@ export default async function DashboardPage() {
   );
 
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-4 pb-16">
+    <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-16 sm:px-6">
       <div className="py-4">
-        <h1 className="text-xl font-bold tracking-tight text-foreground">
-          Catalogue
-        </h1>
-        <p className="mt-0.5 text-sm text-muted">
-          Tap a brand to open it, then Save once you have finished that brand.
+        <h1 className="text-xl font-semibold tracking-tight text-foreground">Catalogue</h1>
+        <p className="mt-1 text-sm text-muted">
+          Open a brand, price its sizes, then Save that brand. Tap the arrow on a row for
+          carton pricing and stock.
         </p>
       </div>
 

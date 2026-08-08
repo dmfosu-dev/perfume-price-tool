@@ -87,7 +87,7 @@ export function CurrencyMultiSelect({
       </button>
 
       {open ? (
-        <div className="mt-1.5 rounded-lg border border-line-strong bg-white-strong dark:bg-accent">
+        <div className="mt-1.5 rounded-lg border border-line-strong bg-surface">
           <div className="border-b border-line p-2">
             <input
               type="search"
@@ -130,7 +130,7 @@ export function CurrencyMultiSelect({
                       </span>
                     </span>
                     {entry.code === base ? (
-                      <span className="shrink-0 rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold uppercase text-white-sunken">
+                      <span className="shrink-0 rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold uppercase text-on-accent">
                         base
                       </span>
                     ) : entry.code === priceEntry ? (

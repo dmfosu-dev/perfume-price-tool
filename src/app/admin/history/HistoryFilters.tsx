@@ -125,7 +125,7 @@ export function HistoryFilterBar({
       <div className="flex items-center gap-2">
         <button
           type="submit"
-          className="min-h-11 flex-1 rounded-lg bg-accent text-sm font-semibold text-white"
+          className="min-h-11 flex-1 rounded-lg bg-accent text-sm font-semibold text-on-accent"
         >
           Apply filters
         </button>

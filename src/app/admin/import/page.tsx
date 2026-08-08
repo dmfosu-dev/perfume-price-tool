@@ -1,32 +1,29 @@
-import { Alert, Card } from "@/components/ui";
+import { Alert, Card, PageHeader, SectionTitle } from "@/components/ui";
 import { requireAdmin } from "@/lib/auth";
 import { CONCENTRATIONS, GENDERS } from "@/lib/enums";
 import { ImportForm } from "./ImportForm";
 
-export const metadata = { title: "Import · Perfume Price Tool" };
+export const metadata = { title: "Import · Aromatic Ghana" };
 
 export default async function ImportPage() {
   await requireAdmin();
 
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6">
-      <h1 className="text-xl font-bold tracking-tight text-foreground">
-        Bulk import
-      </h1>
-      <p className="mt-0.5 text-sm text-muted">
-        Add brands, variants and sizes from a spreadsheet. You see exactly what will
-        change before anything is saved.
-      </p>
+    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6 sm:px-6">
+      <PageHeader
+        title="Bulk import"
+        description="Add brands, variants and sizes from a spreadsheet. You see exactly what will change before anything is saved."
+      />
 
-      <div className="mt-5 space-y-4">
+      <div className="space-y-4">
         <Card>
           <ImportForm />
         </Card>
 
         <Card>
-          <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted">
-            File format
-          </h2>
+          <div className="mb-2">
+            <SectionTitle>File format</SectionTitle>
+          </div>
           <p className="text-sm text-muted">
             Required columns: <code>brand</code>, <code>variant</code>,{" "}
             <code>size_ml</code>, <code>concentration</code>. Optional:{" "}

@@ -177,7 +177,7 @@ export function OfflineProvider({ children }: { children: React.ReactNode }) {
   const banner =
     !online
       ? {
-          tone: "border-amber-300 bg-amber-100 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950 dark:text-amber-100",
+          tone: "border-warning-fg/30 bg-warning-bg text-warning-fg",
           text:
             pending === 0
               ? "Offline — changes will be saved on this phone until you reconnect"
@@ -185,7 +185,7 @@ export function OfflineProvider({ children }: { children: React.ReactNode }) {
         }
       : syncing
         ? {
-            tone: "border-sky-300 bg-sky-100 text-sky-900 dark:border-sky-900/60 dark:bg-sky-950 dark:text-sky-100",
+            tone: "border-info-fg/30 bg-info-bg text-info-fg",
             text: "Syncing queued changes…",
           }
         : null;
@@ -204,7 +204,7 @@ export function OfflineProvider({ children }: { children: React.ReactNode }) {
       {toast ? (
         <div
           role="status"
-          className="sticky top-[57px] z-[6] flex items-center gap-2 border-b border-emerald-300 bg-emerald-100 px-4 py-2.5 text-sm font-semibold text-emerald-900 dark:border-emerald-900/60 dark:bg-emerald-950 dark:text-emerald-100"
+          className="sticky top-[57px] z-[6] flex items-center gap-2 border-b border-success-fg/30 bg-success-bg px-4 py-2.5 text-sm font-semibold text-success-fg"
         >
           <span className="flex-1">{toast}</span>
           <button

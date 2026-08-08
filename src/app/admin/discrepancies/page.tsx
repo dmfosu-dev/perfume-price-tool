@@ -1,10 +1,10 @@
 import Link from "next/link";
-import { Alert, Card } from "@/components/ui";
+import { Alert, Card, chipClass, PageHeader } from "@/components/ui";
 import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ResolveForm } from "./ResolveForm";
 
-export const metadata = { title: "Discrepancies · Perfume Price Tool" };
+export const metadata = { title: "Discrepancies · Aromatic Ghana" };
 
 function formatWhen(value: Date | null): string {
   if (!value) return "—";
@@ -54,40 +54,30 @@ export default async function DiscrepanciesPage({
   const openCount = await prisma.discrepancyReport.count({ where: { status: "open" } });
 
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6">
-      <h1 className="text-xl font-bold tracking-tight text-foreground">
-        Discrepancies
-      </h1>
-      <p className="mt-0.5 text-sm text-muted">
-        Naming and size problems reported against physical stock.
-      </p>
+    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6 sm:px-6">
+      <PageHeader
+        title="Discrepancies"
+        description="Naming and size problems reported against physical stock."
+      />
 
-      <div className="mt-4 flex gap-2">
+      <div className="mb-4 flex gap-2">
         <Link
           href="/admin/discrepancies"
           aria-current={showAll ? undefined : "page"}
-          className={`min-h-9 rounded-full px-3 text-sm font-medium leading-9 ${
-            showAll
-              ? "border border-line-strong text-muted"
-              : "bg-accent text-white"
-          }`}
+          className={`${chipClass(!showAll)} min-h-9 text-sm`}
         >
           Open ({openCount})
         </Link>
         <Link
           href="/admin/discrepancies?show=all"
           aria-current={showAll ? "page" : undefined}
-          className={`min-h-9 rounded-full px-3 text-sm font-medium leading-9 ${
-            showAll
-              ? "bg-accent text-white"
-              : "border border-line-strong text-muted"
-          }`}
+          className={`${chipClass(showAll)} min-h-9 text-sm`}
         >
           All
         </Link>
       </div>
 
-      <div className="mt-4 space-y-3">
+      <div className="space-y-3">
         {reports.length === 0 ? (
           <Alert tone="info" title={showAll ? "No reports yet" : "Nothing to review"}>
             Intermediaries raise these from the catalogue with “Report a problem”.

@@ -71,7 +71,7 @@ export function CompetitorPanel({
 
   return (
     <div className="mt-3 space-y-3">
-      <div className="rounded-xl border border-line bg-white p-3 dark:bg-accent">
+      <div className="rounded-xl border border-line bg-surface p-3">
         <h3 className="mb-2 text-sm font-semibold text-foreground">
           Log a competitor price
         </h3>
@@ -143,7 +143,7 @@ export function CompetitorPanel({
           {recent.map((row) => (
             <li
               key={row.id}
-              className="rounded-xl border border-line bg-white p-3 dark:bg-accent"
+              className="rounded-xl border border-line bg-surface p-3"
             >
               <p className="font-medium text-foreground">
                 {formatMoney(row.currency, row.price)} · {row.competitor}

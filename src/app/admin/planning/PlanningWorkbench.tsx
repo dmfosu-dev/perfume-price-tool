@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { chipClass } from "@/components/ui";
 import { convertAmount, currencyInfo, formatMoney } from "@/lib/currencies";
 import type { PlanningData, PlanningSku } from "@/lib/planning-data";
 import {
@@ -93,7 +94,7 @@ export function PlanningWorkbench({
   );
 
   const field =
-    "h-11 w-full rounded-lg border border-line-strong bg-white px-2.5 text-base nums text-foreground-strong dark:bg-accent";
+    "h-11 w-full rounded-lg border border-line-strong bg-surface px-2.5 text-base nums text-foreground";
 
   return (
     <div>
@@ -104,11 +105,7 @@ export function PlanningWorkbench({
             type="button"
             onClick={() => setTab(entry.key)}
             aria-pressed={tab === entry.key}
-            className={`min-h-10 shrink-0 rounded-full px-3 text-sm font-medium ${
-              tab === entry.key
-                ? "bg-accent text-white"
-                : "border border-line-strong text-muted"
-            }`}
+            className={`${chipClass(tab === entry.key)} min-h-10 shrink-0 text-sm`}
           >
             {entry.label}
           </button>
@@ -116,7 +113,7 @@ export function PlanningWorkbench({
       </div>
 
       {/* Stress test applies to every tab — it is just a different set of rates. */}
-      <div className="mt-3 rounded-xl border border-line bg-white p-3 dark:bg-accent">
+      <div className="mt-3 rounded-xl border border-line bg-surface p-3">
         <label className="block">
           <span className="text-xs font-medium text-muted">
             What-if: move every rate against {data.baseCurrency} by{" "}
@@ -137,7 +134,7 @@ export function PlanningWorkbench({
           />
         </label>
         {stressPct !== 0 ? (
-          <p className="mt-1 text-xs font-medium text-amber-700 dark:text-amber-400">
+          <p className="mt-1 text-xs font-medium text-warning-fg">
             Simulation only — nothing here is saved, and live rates are untouched.
           </p>
         ) : null}
@@ -145,7 +142,7 @@ export function PlanningWorkbench({
 
       {tab === "margin" ? (
         <div className="mt-3 space-y-3">
-          <div className="rounded-xl border border-line bg-white p-3 dark:bg-accent">
+          <div className="rounded-xl border border-line bg-surface p-3">
             <div className="grid grid-cols-2 gap-2">
               {[
                 ["shippingPerUnit", `Shipping / unit (${data.baseCurrency})`],
@@ -227,7 +224,7 @@ export function PlanningWorkbench({
                 return (
                   <li
                     key={sku.id}
-                    className="rounded-xl border border-line bg-white p-3 dark:bg-accent"
+                    className="rounded-xl border border-line bg-surface p-3"
                   >
                     <SkuHeading sku={sku} />
                     <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-sm sm:grid-cols-4">
@@ -251,8 +248,8 @@ export function PlanningWorkbench({
                         <span
                           className={
                             competitorMargin < 0
-                              ? "font-semibold text-red-600 dark:text-red-400"
-                              : "font-semibold text-emerald-700 dark:text-emerald-400"
+                              ? "font-semibold text-danger-fg"
+                              : "font-semibold text-success-fg"
                           }
                         >
                           {competitorMargin.toFixed(1)}%
@@ -300,14 +297,14 @@ export function PlanningWorkbench({
                 const band = volatilityBand(v.score);
                 const tone =
                   band === "volatile"
-                    ? "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200"
+                    ? "bg-danger-bg text-danger-fg"
                     : band === "moderate"
-                      ? "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200"
-                      : "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200";
+                      ? "bg-warning-bg text-warning-fg"
+                      : "bg-success-bg text-success-fg";
                 return (
                   <div
                     key={sku.id}
-                    className="rounded-xl border border-line bg-white p-3 dark:bg-accent"
+                    className="rounded-xl border border-line bg-surface p-3"
                   >
                     <div className="flex items-start gap-2">
                       <div className="min-w-0 flex-1">
@@ -400,7 +397,7 @@ function RestockForecaster({
             return (
               <li
                 key={sku.id}
-                className="rounded-xl border border-line bg-white p-3 dark:bg-accent"
+                className="rounded-xl border border-line bg-surface p-3"
               >
                 <SkuHeading sku={sku} />
                 <div className="mt-2 flex items-end gap-2">
@@ -417,7 +414,7 @@ function RestockForecaster({
                       }
                       placeholder="0"
                       aria-label={`Restock quantity for ${sku.skuCode}`}
-                      className="h-11 w-full rounded-lg border border-line-strong bg-white px-2.5 text-base nums text-foreground-strong dark:bg-accent"
+                      className="h-11 w-full rounded-lg border border-line-strong bg-surface px-2.5 text-base nums text-foreground"
                     />
                   </label>
                   <div className="flex-1 text-right">
@@ -431,7 +428,7 @@ function RestockForecaster({
                   </div>
                 </div>
                 {belowMoq ? (
-                  <p className="mt-1.5 text-xs font-medium text-amber-700 dark:text-amber-400">
+                  <p className="mt-1.5 text-xs font-medium text-warning-fg">
                     Below the vendor minimum of {sku.minimumOrderQty}.
                   </p>
                 ) : null}

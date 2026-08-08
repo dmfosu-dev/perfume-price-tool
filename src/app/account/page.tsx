@@ -5,7 +5,7 @@ import { Alert, Card, PageHeader, SectionTitle } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
 import { ChangeEmailForm, ChangePasswordForm } from "./AccountForms";
 
-export const metadata = { title: "My account · Perfume Price Tool" };
+export const metadata = { title: "My account · Aromatic Ghana" };
 
 const BLOCKED: Record<
   string,

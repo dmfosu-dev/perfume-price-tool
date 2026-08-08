@@ -1,35 +1,149 @@
 @import "tailwindcss";
 
-/* Design tokens. One accent (indigo) against a warm-neutral surface stack, in
-   the vein of Zoho Inventory and similar back-office tools: dense, calm, and
-   heavy on hierarchy rather than colour. */
-:root {
-  --background: #f6f7f9;
+/* ---------------------------------------------------------------------------
+   Aromatic Ghana — theme tokens.
+
+   Four selectable themes, each a complete set of the same custom properties.
+   Component markup never changes between themes; only these values do.
+   The switcher writes data-theme on <html>; "system" removes the attribute and
+   falls back to the prefers-color-scheme block below.
+
+   Brand gold #C9A227 lives only inside the logo mark — never in buttons, links,
+   focus rings or status, so the interface keeps reading as an instrument.
+--------------------------------------------------------------------------- */
+
+/* Theme 1 — Mono (default): white canvas, black ink, matches the logo. */
+:root,
+:root[data-theme="mono"] {
+  --background: #ffffff;
   --surface: #ffffff;
-  --surface-sunken: #f1f2f5;
-  --border: #e3e5ea;
-  --border-strong: #cfd3db;
-  --foreground: #15181f;
-  --muted: #5c6473;
-  --muted-soft: #8b93a3;
-  --accent: #4f46e5;
-  --accent-hover: #4338ca;
-  --accent-soft: #eef2ff;
+  --surface-sunken: #f4f4f5;
+  --border: #e4e4e7;
+  --border-strong: #d4d4d8;
+  --foreground: #0a0a0a;
+  --muted: #52525b;
+  --muted-soft: #a1a1aa;
+  --accent: #0a0a0a;
+  --accent-hover: #27272a;
+  --accent-soft: #f4f4f5;
+  --on-accent: #ffffff;
+  /* The logo's letterform is black, so on dark themes it needs a light plate
+     behind it. Transparent everywhere else keeps the mark bare, as designed. */
+  --logo-plate: transparent;
+
+  --success-bg: #dcfce7;
+  --success-fg: #166534;
+  --warning-bg: #fef3c7;
+  --warning-fg: #92400e;
+  --danger-bg: #fee2e2;
+  --danger-fg: #991b1b;
+  --info-bg: #e0f2fe;
+  --info-fg: #075985;
 }
 
+/* Theme 2 — Bloom: calm soft-tech pastels. */
+:root[data-theme="bloom"] {
+  --background: #fcfcfd;
+  --surface: #ffffff;
+  --surface-sunken: #f7f5fd;
+  --border: #eae7f5;
+  --border-strong: #d8d3ec;
+  --foreground: #1e1b2e;
+  --muted: #5d5878;
+  --muted-soft: #9a94b4;
+  --accent: #7c6bc4;
+  --accent-hover: #6a59b0;
+  --accent-soft: #e6e6fa;
+  --on-accent: #ffffff;
+  --logo-plate: transparent;
+
+  --success-bg: #dcf5e7;
+  --success-fg: #1c6b45;
+  --warning-bg: #fdf0d5;
+  --warning-fg: #8a5a1b;
+  --danger-bg: #fde4ec;
+  --danger-fg: #9c2a52;
+  --info-bg: #e6ecfb;
+  --info-fg: #33488f;
+}
+
+/* Theme 3 — Grove: nature-inspired organic neutrals. */
+:root[data-theme="grove"] {
+  --background: #faf9f5;
+  --surface: #ffffff;
+  --surface-sunken: #f5f5dc;
+  --border: #e6e3d5;
+  --border-strong: #d2cebb;
+  --foreground: #1c2b22;
+  --muted: #55665c;
+  --muted-soft: #8c9a91;
+  --accent: #2e8b57;
+  --accent-hover: #256f46;
+  --accent-soft: #e3f0e8;
+  --on-accent: #ffffff;
+  --logo-plate: transparent;
+
+  --success-bg: #ddefe2;
+  --success-fg: #1f5e3c;
+  --warning-bg: #f6edd2;
+  --warning-fg: #7d6320;
+  --danger-bg: #f6dedb;
+  --danger-fg: #8c3229;
+  --info-bg: #dfeaea;
+  --info-fg: #2b5a5c;
+}
+
+/* Theme 4 — Neon: high-contrast dark with a sky-blue accent. */
+:root[data-theme="neon"] {
+  --background: #0f172a;
+  --surface: #16203a;
+  --surface-sunken: #0b1220;
+  --border: #24314f;
+  --border-strong: #33456b;
+  --foreground: #f1f5f9;
+  --muted: #94a3b8;
+  --muted-soft: #64748b;
+  --accent: #38bdf8;
+  --accent-hover: #7dd3fc;
+  --accent-soft: #0c2a3f;
+  --on-accent: #05192b;
+  --logo-plate: #f4f4f5;
+
+  --success-bg: #06301f;
+  --success-fg: #6ee7b7;
+  --warning-bg: #3a2a06;
+  --warning-fg: #fcd34d;
+  --danger-bg: #3d1116;
+  --danger-fg: #fca5a5;
+  --info-bg: #082f49;
+  --info-fg: #7dd3fc;
+}
+
+/* Only applies when no data-theme is set, i.e. the "System" option. */
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0b0d12;
-    --surface: #14171f;
-    --surface-sunken: #0f1219;
-    --border: #242833;
-    --border-strong: #333949;
-    --foreground: #eef0f4;
-    --muted: #9aa2b2;
-    --muted-soft: #6b7385;
-    --accent: #818cf8;
-    --accent-hover: #a5b4fc;
-    --accent-soft: #1e1b4b;
+  :root:not([data-theme]) {
+    --background: #0f172a;
+    --surface: #16203a;
+    --surface-sunken: #0b1220;
+    --border: #24314f;
+    --border-strong: #33456b;
+    --foreground: #f1f5f9;
+    --muted: #94a3b8;
+    --muted-soft: #64748b;
+    --accent: #38bdf8;
+    --accent-hover: #7dd3fc;
+    --accent-soft: #0c2a3f;
+    --on-accent: #05192b;
+    --logo-plate: #f4f4f5;
+
+    --success-bg: #06301f;
+    --success-fg: #6ee7b7;
+    --warning-bg: #3a2a06;
+    --warning-fg: #fcd34d;
+    --danger-bg: #3d1116;
+    --danger-fg: #fca5a5;
+    --info-bg: #082f49;
+    --info-fg: #7dd3fc;
   }
 }
 
@@ -45,6 +159,17 @@
   --color-accent: var(--accent);
   --color-accent-hover: var(--accent-hover);
   --color-accent-soft: var(--accent-soft);
+  --color-on-accent: var(--on-accent);
+
+  --color-success-bg: var(--success-bg);
+  --color-success-fg: var(--success-fg);
+  --color-warning-bg: var(--warning-bg);
+  --color-warning-fg: var(--warning-fg);
+  --color-danger-bg: var(--danger-bg);
+  --color-danger-fg: var(--danger-fg);
+  --color-info-bg: var(--info-bg);
+  --color-info-fg: var(--info-fg);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }

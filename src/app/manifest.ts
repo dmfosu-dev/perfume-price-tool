@@ -2,9 +2,9 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Perfume Price Tool",
-    short_name: "PPT",
-    description: "Source prices and stock for the perfume catalogue.",
+    name: "Aromatic Ghana — Price Tool",
+    short_name: "Aromatic",
+    description: "Source prices and stock for the Aromatic Ghana perfume catalogue.",
     start_url: "/dashboard",
     display: "standalone",
     orientation: "portrait",

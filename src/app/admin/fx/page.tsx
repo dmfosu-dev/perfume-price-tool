@@ -1,4 +1,4 @@
-import { Alert, Card } from "@/components/ui";
+import { Alert, Card, PageHeader, SectionTitle } from "@/components/ui";
 import { requireAdmin } from "@/lib/auth";
 import { currencyInfo } from "@/lib/currencies";
 import { getFxStatus } from "@/lib/fx";
@@ -11,7 +11,7 @@ import {
   SourceForm,
 } from "./FxForms";
 
-export const metadata = { title: "FX rates · Perfume Price Tool" };
+export const metadata = { title: "Currencies · Aromatic Ghana" };
 
 function formatWhen(value: Date | null): string {
   if (!value) return "never";
@@ -37,16 +37,13 @@ export default async function FxSettingsPage() {
   );
 
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6">
-      <h1 className="text-xl font-bold tracking-tight text-foreground">
-        FX rates
-      </h1>
-      <p className="mt-0.5 text-sm text-muted">
-        Prices are entered in whichever currency a shop quotes. These rates convert
-        between them.
-      </p>
+    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6 sm:px-6">
+      <PageHeader
+        title="Currencies"
+        description="Prices are entered in whichever currency a shop quotes. These rates convert between them."
+      />
 
-      <div className="mt-5 space-y-4">
+      <div className="space-y-4">
         {health.stale ? (
           <Alert tone="warning" title="Rates may be out of date">
             {health.reason} The last known good rates are still being used — price entry
@@ -62,20 +59,36 @@ export default async function FxSettingsPage() {
         ) : null}
 
         <Card>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">
-            Currencies
-          </h2>
-          <CurrencySetupForm
-            baseCurrency={settings.baseCurrency}
-            priceEntryCurrency={settings.priceEntryCurrency}
-            selectedCurrencies={settings.selectedCurrencies}
-          />
+          <SectionTitle>Currencies</SectionTitle>
+          <div className="mt-3">
+            <CurrencySetupForm
+              baseCurrency={settings.baseCurrency}
+              priceEntryCurrency={settings.priceEntryCurrency}
+              selectedCurrencies={settings.selectedCurrencies}
+            />
+          </div>
         </Card>
 
         <Card>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">
-            Current rates
-          </h2>
+          <SectionTitle>Convert</SectionTitle>
+          <div className="mt-3">
+            <CurrencyConverter
+              rates={conversion.rates}
+              available={conversion.displayOrder}
+              baseCurrency={settings.baseCurrency}
+              initialFrom={settings.baseCurrency}
+              initialTo={
+                conversion.displayOrder.find((code) => code !== settings.baseCurrency) ??
+                settings.baseCurrency
+              }
+            />
+          </div>
+        </Card>
+
+        <Card>
+          <div className="mb-3">
+            <SectionTitle>Current rates</SectionTitle>
+          </div>
           {rates.length === 0 ? (
             <p className="text-sm text-muted">
               No rates stored for {settings.baseCurrency} yet.
@@ -105,25 +118,9 @@ export default async function FxSettingsPage() {
         </Card>
 
         <Card>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">
-            Convert
-          </h2>
-          <CurrencyConverter
-            rates={conversion.rates}
-            available={conversion.displayOrder}
-            baseCurrency={settings.baseCurrency}
-            initialFrom={settings.baseCurrency}
-            initialTo={
-              conversion.displayOrder.find((code) => code !== settings.baseCurrency) ??
-              settings.baseCurrency
-            }
-          />
-        </Card>
-
-        <Card>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">
-            Source
-          </h2>
+          <div className="mb-3">
+            <SectionTitle>Source</SectionTitle>
+          </div>
           <SourceForm
             source={settings.source}
             refreshIntervalHours={settings.refreshIntervalHours}
@@ -138,9 +135,9 @@ export default async function FxSettingsPage() {
         </Card>
 
         <Card>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">
-            Enter rates manually
-          </h2>
+          <div className="mb-3">
+            <SectionTitle>Enter rates manually</SectionTitle>
+          </div>
           <ManualRatesForm
             baseCurrency={settings.baseCurrency}
             targets={manualTargets}

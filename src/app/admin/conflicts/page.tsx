@@ -1,11 +1,11 @@
 import Link from "next/link";
-import { Alert, Card } from "@/components/ui";
+import { Alert, Card, chipClass, PageHeader } from "@/components/ui";
 import { requireAdmin } from "@/lib/auth";
 import { formatMoney } from "@/lib/currencies";
 import { prisma } from "@/lib/prisma";
 import { ConflictActions } from "./ConflictActions";
 
-export const metadata = { title: "Conflicts · Perfume Price Tool" };
+export const metadata = { title: "Conflicts · Aromatic Ghana" };
 
 function formatWhen(value: Date | null): string {
   if (!value) return "—";
@@ -74,39 +74,30 @@ export default async function ConflictsPage({
   const openCount = await prisma.priceConflict.count({ where: { status: "open" } });
 
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6">
-      <h1 className="text-xl font-bold tracking-tight text-foreground">
-        Conflicts
-      </h1>
-      <p className="mt-0.5 text-sm text-muted">
-        An offline edit arrived for a product someone else had already changed. Nothing
-        was overwritten — pick which price is right.
-      </p>
+    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6 sm:px-6">
+      <PageHeader
+        title="Conflicts"
+        description="An offline edit arrived for a product someone else had already changed. Nothing was overwritten — pick which price is right."
+      />
 
-      <div className="mt-4 flex gap-2">
+      <div className="mb-4 flex gap-2">
         <Link
           href="/admin/conflicts"
-          className={`min-h-9 rounded-full px-3 text-sm font-medium leading-9 ${
-            showAll
-              ? "border border-line-strong text-muted"
-              : "bg-accent text-white"
-          }`}
+          aria-current={showAll ? undefined : "page"}
+          className={`${chipClass(!showAll)} min-h-9 text-sm`}
         >
           Open ({openCount})
         </Link>
         <Link
           href="/admin/conflicts?show=all"
-          className={`min-h-9 rounded-full px-3 text-sm font-medium leading-9 ${
-            showAll
-              ? "bg-accent text-white"
-              : "border border-line-strong text-muted"
-          }`}
+          aria-current={showAll ? "page" : undefined}
+          className={`${chipClass(showAll)} min-h-9 text-sm`}
         >
           All
         </Link>
       </div>
 
-      <div className="mt-4 space-y-3">
+      <div className="space-y-3">
         {conflicts.length === 0 ? (
           <Alert tone="info" title={showAll ? "No conflicts recorded" : "Nothing to resolve"}>
             These appear only when an offline edit clashes with a change made while that
@@ -133,8 +124,8 @@ export default async function ConflictsPage({
               </p>
 
               <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                <div className="rounded-lg border border-emerald-300 bg-emerald-50 p-2.5 dark:border-emerald-900/60 dark:bg-emerald-950/30">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-emerald-800 dark:text-emerald-300">
+                <div className="rounded-lg border border-success-fg/30 bg-success-bg p-2.5">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-success-fg">
                     In force now
                   </p>
                   <p className="mt-0.5 font-semibold text-foreground">
@@ -152,8 +143,8 @@ export default async function ConflictsPage({
                   </p>
                 </div>
 
-                <div className="rounded-lg border border-amber-300 bg-amber-50 p-2.5 dark:border-amber-900/60 dark:bg-amber-950/30">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-amber-800 dark:text-amber-300">
+                <div className="rounded-lg border border-warning-fg/30 bg-warning-bg p-2.5">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-warning-fg">
                     Queued offline
                   </p>
                   <p className="mt-0.5 font-semibold text-foreground">

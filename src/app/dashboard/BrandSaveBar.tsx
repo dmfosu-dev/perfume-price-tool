@@ -43,7 +43,7 @@ export function BrandSaveBar({
       </datalist>
 
       {error ? (
-        <p role="alert" className="mt-2 text-xs font-medium text-red-600 dark:text-red-400">
+        <p role="alert" className="mt-2 text-xs font-medium text-danger-fg">
           {error}
         </p>
       ) : null}
@@ -53,7 +53,7 @@ export function BrandSaveBar({
           type="button"
           onClick={onSave}
           disabled={saving}
-          className="min-h-12 flex-1 rounded-lg bg-accent text-sm font-bold text-white disabled:opacity-60"
+          className="min-h-12 flex-1 rounded-lg bg-accent text-sm font-bold text-on-accent disabled:opacity-60"
         >
           {saving ? "Saving…" : `Save ${count} ${count === 1 ? "change" : "changes"}`}
         </button>

@@ -2,6 +2,11 @@ import type { ComponentProps, ReactNode } from "react";
 
 // Shared primitives. Everything reads from the tokens in globals.css so the
 // whole app shifts together rather than drifting page by page.
+//
+// Status colours come from tokens too (success-bg/fg, warning-*, danger-*,
+// info-*) rather than Tailwind's palette with `dark:` variants: `dark:` keys off
+// the OS setting, which would be wrong the moment someone picks the Neon theme
+// on a light machine, or the Mono theme on a dark one.
 
 export const inputClass =
   "h-10 w-full rounded-lg border border-line bg-surface px-3 text-sm text-foreground placeholder:text-muted-soft transition focus:border-accent focus:outline-none disabled:opacity-60";
@@ -41,13 +46,39 @@ export function Select({
   );
 }
 
+const BUTTON_BASE =
+  "inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg px-3.5 text-sm font-semibold transition disabled:opacity-50 disabled:pointer-events-none";
+
+export const buttonVariants = {
+  primary: `${BUTTON_BASE} bg-accent text-on-accent hover:bg-accent-hover`,
+  secondary: `${BUTTON_BASE} border border-line-strong bg-surface text-foreground hover:bg-surface-sunken`,
+  ghost: `${BUTTON_BASE} text-muted hover:bg-surface-sunken hover:text-foreground`,
+  danger: `${BUTTON_BASE} bg-danger-bg text-danger-fg hover:opacity-85`,
+  dangerGhost: `${BUTTON_BASE} text-danger-fg hover:bg-danger-bg`,
+} as const;
+
+export type ButtonVariant = keyof typeof buttonVariants;
+
+/** Small ghost button used in the dense toolbars on the Products screen. */
+export const smallGhostClass =
+  "inline-flex min-h-8 items-center gap-1 rounded-lg px-2.5 text-xs font-medium text-muted transition hover:bg-surface-sunken hover:text-foreground disabled:opacity-50";
+
+export const smallDangerClass =
+  "inline-flex min-h-8 items-center gap-1 rounded-lg px-2.5 text-xs font-medium text-danger-fg transition hover:bg-danger-bg disabled:opacity-50";
+
+export function Button({
+  variant = "primary",
+  className = "",
+  ...props
+}: { variant?: ButtonVariant } & ComponentProps<"button">) {
+  return <button {...props} className={`${buttonVariants[variant]} ${className}`} />;
+}
+
 const TONES = {
-  error: "border-red-200 bg-red-50 text-red-900 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-100",
-  info: "border-sky-200 bg-sky-50 text-sky-900 dark:border-sky-900/50 dark:bg-sky-950/40 dark:text-sky-100",
-  success:
-    "border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-100",
-  warning:
-    "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-100",
+  error: "border-danger-fg/25 bg-danger-bg text-danger-fg",
+  info: "border-info-fg/25 bg-info-bg text-info-fg",
+  success: "border-success-fg/25 bg-success-bg text-success-fg",
+  warning: "border-warning-fg/25 bg-warning-bg text-warning-fg",
 } as const;
 
 export function Alert({
@@ -116,15 +147,17 @@ export function SectionTitle({ children }: { children: ReactNode }) {
 }
 
 const BADGE_TONES: Record<string, string> = {
-  approved: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200",
-  in_stock: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200",
-  pending: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200",
+  approved: "bg-success-bg text-success-fg",
+  in_stock: "bg-success-bg text-success-fg",
+  pending: "bg-warning-bg text-warning-fg",
   unknown: "bg-surface-sunken text-muted",
-  suspended: "bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-200",
-  out_of_stock: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200",
-  revoked: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200",
+  suspended: "bg-warning-bg text-warning-fg",
+  out_of_stock: "bg-danger-bg text-danger-fg",
+  revoked: "bg-danger-bg text-danger-fg",
   rejected: "bg-surface-sunken text-muted",
+  info: "bg-info-bg text-info-fg",
   accent: "bg-accent-soft text-accent",
+  solid: "bg-accent text-on-accent",
   neutral: "bg-surface-sunken text-muted",
 };
 
@@ -169,16 +202,65 @@ export function Stat({
   label,
   value,
   hint,
+  tone,
 }: {
   label: string;
   value: ReactNode;
   hint?: string;
+  /** Tints the figure when a non-zero count needs attention. */
+  tone?: "default" | "warning" | "danger" | "success";
 }) {
+  const valueTone =
+    tone === "warning"
+      ? "text-warning-fg"
+      : tone === "danger"
+        ? "text-danger-fg"
+        : tone === "success"
+          ? "text-success-fg"
+          : "text-foreground";
   return (
     <div className="rounded-xl border border-line bg-surface px-4 py-3">
       <p className="text-xs font-medium uppercase tracking-wide text-muted-soft">{label}</p>
-      <p className="nums mt-0.5 text-xl font-semibold text-foreground">{value}</p>
+      <p className={`nums mt-0.5 text-xl font-semibold ${valueTone}`}>{value}</p>
       {hint ? <p className="mt-0.5 text-xs text-muted">{hint}</p> : null}
     </div>
   );
+}
+
+/** Row of KPI tiles; wraps to two columns on a phone. */
+export function StatRow({ children }: { children: ReactNode }) {
+  return <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">{children}</div>;
+}
+
+/** Uppercase heading cell shared by every data table. */
+export function Th({
+  children,
+  align = "left",
+  className = "",
+}: {
+  children?: ReactNode;
+  align?: "left" | "right" | "center";
+  className?: string;
+}) {
+  // Alignment is a prop rather than a caller-supplied class because Tailwind
+  // resolves conflicting utilities by stylesheet order, not class order.
+  const alignment =
+    align === "right" ? "text-right" : align === "center" ? "text-center" : "text-left";
+  return (
+    <th
+      scope="col"
+      className={`px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-muted-soft ${alignment} ${className}`}
+    >
+      {children}
+    </th>
+  );
+}
+
+/** Rounded-full filter chip. */
+export function chipClass(active: boolean) {
+  return `inline-flex min-h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium transition ${
+    active
+      ? "bg-accent text-on-accent"
+      : "border border-line bg-surface text-muted hover:bg-surface-sunken hover:text-foreground"
+  }`;
 }

@@ -58,10 +58,10 @@ export function ImportForm() {
   }
 
   const badge: Record<string, string> = {
-    create: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200",
+    create: "bg-success-bg text-success-fg",
     skip: "bg-surface-sunken text-muted",
-    error: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200",
-    update: "bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-200",
+    error: "bg-danger-bg text-danger-fg",
+    update: "bg-info-bg text-info-fg",
   };
 
   return (
@@ -74,7 +74,7 @@ export function ImportForm() {
           type="file"
           accept=".csv,text/csv"
           onChange={(event) => void onFile(event.target.files?.[0])}
-          className="block w-full text-sm text-muted file:mr-3 file:min-h-11 file:rounded-lg file:border-0 file:bg-accent file:px-4 file:text-sm file:font-semibold file:text-white dark:file:bg-surface-sunken dark:file:text-foreground"
+          className="block w-full text-sm text-muted file:mr-3 file:min-h-11 file:rounded-lg file:border-0 file:bg-accent file:px-4 file:text-sm file:font-semibold file:text-on-accent"
         />
       </label>
 
@@ -123,7 +123,7 @@ export function ImportForm() {
               type="button"
               onClick={commit}
               disabled={pending || plan.counts.error > 0 || plan.counts.create === 0}
-              className="min-h-11 flex-1 rounded-lg bg-accent px-4 text-sm font-semibold text-white disabled:opacity-50"
+              className="min-h-11 flex-1 rounded-lg bg-accent px-4 text-sm font-semibold text-on-accent disabled:opacity-50"
             >
               {plan.counts.error > 0
                 ? "Fix the errors first"

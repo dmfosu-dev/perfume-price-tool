@@ -29,6 +29,18 @@ function Feedback({ state }: { state: CatalogueState }) {
   return null;
 }
 
+/**
+ * Shown in place of Delete once price history exists. Without it the button
+ * simply vanishes and the absence reads as a bug rather than a rule.
+ */
+function HistoryLock() {
+  return (
+    <p className="px-2 py-2 text-xs text-muted-soft">
+      Has price history — archive rather than delete.
+    </p>
+  );
+}
+
 /// Shared confirm wrapper for destructive submits.
 function ConfirmForm({
   action,
@@ -56,19 +68,21 @@ export function AddBrandForm() {
   return (
     <form action={action} className="space-y-2.5">
       <Feedback state={state} />
-      <div className="flex flex-wrap gap-2">
+      {/* A grid rather than flex: inputClass sets w-full, so in a flex row the
+          fields fight over width and wrap onto separate lines. */}
+      <div className="grid gap-2 sm:grid-cols-[1fr_7rem_auto]">
         <input
           name="name"
           placeholder="Brand name"
           aria-label="Brand name"
-          className={`${inputClass} min-w-40 flex-1`}
+          className={inputClass}
         />
         <input
           name="code"
           placeholder="CODE"
           aria-label="Brand code"
           maxLength={6}
-          className={`${inputClass} w-24 uppercase`}
+          className={`${inputClass} uppercase`}
         />
         <SubmitButton pendingLabel="Adding…">Add brand</SubmitButton>
       </div>
@@ -135,11 +149,13 @@ export function BrandToolbar({
             message={`Delete "${name}" and everything under it? This cannot be undone.`}
           >
             <input type="hidden" name="brandId" value={brandId} />
-            <SubmitButton variant="ghost" size="sm" className="text-red-600">
+            <SubmitButton variant="dangerGhost" size="sm">
               Delete
             </SubmitButton>
           </ConfirmForm>
-        ) : null}
+        ) : (
+          <HistoryLock />
+        )}
       </div>
 
       {editing ? (
@@ -165,14 +181,14 @@ export function AddVariantForm({ brandId }: { brandId: string }) {
   return (
     <form action={action} className="space-y-2">
       <Feedback state={state} />
-      <div className="flex flex-wrap gap-2">
+      <div className="grid gap-2 sm:grid-cols-[1fr_8rem_auto]">
         <input
           name="name"
           placeholder="Fragrance name"
           aria-label="Fragrance name"
-          className={`${inputClass} min-w-40 flex-1`}
+          className={inputClass}
         />
-        <select name="gender" defaultValue="unisex" aria-label="Gender" className={`${inputClass} w-28`}>
+        <select name="gender" defaultValue="unisex" aria-label="Gender" className={inputClass}>
           {GENDERS.map((option) => (
             <option key={option} value={option}>
               {option}
@@ -232,11 +248,13 @@ export function VariantToolbar({
         {canDelete ? (
           <ConfirmForm action={remove} message={`Delete "${name}" and its sizes?`}>
             <input type="hidden" name="variantId" value={variantId} />
-            <SubmitButton variant="ghost" size="sm" className="text-red-600">
+            <SubmitButton variant="dangerGhost" size="sm">
               Delete
             </SubmitButton>
           </ConfirmForm>
-        ) : null}
+        ) : (
+          <HistoryLock />
+        )}
       </div>
 
       {editing ? (
@@ -283,19 +301,19 @@ export function AddSkuForm({ variantId }: { variantId: string }) {
   return (
     <form action={action} className="space-y-2">
       <Feedback state={state} />
-      <div className="flex flex-wrap gap-2">
+      <div className="grid gap-2 sm:grid-cols-[6rem_9rem_auto] sm:justify-start">
         <input
           name="sizeMl"
           inputMode="numeric"
           placeholder="ml"
           aria-label="Size in millilitres"
-          className={`${inputClass} w-20`}
+          className={inputClass}
         />
         <select
           name="concentration"
           defaultValue="EDP"
           aria-label="Concentration"
-          className={`${inputClass} w-32`}
+          className={inputClass}
         >
           {CONCENTRATIONS.map((option) => (
             <option key={option} value={option}>
@@ -440,14 +458,12 @@ export function SkuToolbar({
             {canDelete ? (
               <ConfirmForm action={remove} message={`Delete ${skuCode}?`}>
                 <input type="hidden" name="skuId" value={skuId} />
-                <SubmitButton variant="ghost" size="sm" className="text-red-600">
+                <SubmitButton variant="dangerGhost" size="sm">
                   Delete
                 </SubmitButton>
               </ConfirmForm>
             ) : (
-              <p className="px-2 py-2 text-xs text-muted">
-                Has price history — archive rather than delete.
-              </p>
+              <HistoryLock />
             )}
           </div>
         </div>

@@ -1,11 +1,11 @@
-import { Alert } from "@/components/ui";
+import { Alert, PageHeader } from "@/components/ui";
 import { requireAdmin } from "@/lib/auth";
 import { DEFAULT_COST_INPUTS, type CostInputs } from "@/lib/planning";
 import { getCostAssumption, getPlanningData } from "@/lib/planning-data";
 import { prisma } from "@/lib/prisma";
 import { PlanningWorkbench } from "./PlanningWorkbench";
 
-export const metadata = { title: "Planning · Perfume Price Tool" };
+export const metadata = { title: "Planning · Aromatic Ghana" };
 
 export default async function PlanningPage() {
   await requireAdmin();
@@ -48,15 +48,13 @@ export default async function PlanningPage() {
   };
 
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6">
-      <h1 className="text-xl font-bold tracking-tight text-foreground">
-        Planning
-      </h1>
-      <p className="mt-0.5 text-sm text-muted">
-        Admin only. Intermediaries never see landed cost, margin or retail pricing.
-      </p>
+    <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-6 sm:px-6">
+      <PageHeader
+        title="Planning"
+        description="Admin only. Intermediaries never see landed cost, margin or retail pricing."
+      />
 
-      <div className="mt-4">
+      <div>
         {data.currencies.length === 0 ? (
           <Alert tone="warning" title="No FX rates yet">
             Costs are converted into {data.baseCurrency} before modelling. Fetch or enter

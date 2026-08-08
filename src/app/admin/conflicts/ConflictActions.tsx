@@ -23,7 +23,7 @@ export function ConflictActions({ conflictId }: { conflictId: string }) {
   return (
     <div className="mt-3 border-t border-line pt-3">
       {error ? (
-        <p role="alert" className="mb-2 text-xs font-medium text-red-600 dark:text-red-400">
+        <p role="alert" className="mb-2 text-xs font-medium text-danger-fg">
           {error}
         </p>
       ) : null}

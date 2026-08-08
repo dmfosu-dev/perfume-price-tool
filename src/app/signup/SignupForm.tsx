@@ -19,7 +19,7 @@ export function SignupForm() {
         </Alert>
         <Link
           href="/login"
-          className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-accent px-4 text-sm font-semibold text-white hover:bg-accent-hover"
+          className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-accent px-4 text-sm font-semibold text-on-accent hover:bg-accent-hover"
         >
           Back to sign in
         </Link>

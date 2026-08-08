@@ -1,9 +1,11 @@
 "use client";
 
 import { useCallback, useMemo, useState, useTransition } from "react";
+import type { ReactNode } from "react";
 import { savePriceEdits, type SkuEdit } from "@/app/actions/prices";
 import type { BrandView, SkuView, VariantView } from "@/lib/catalogue";
 import { useOffline } from "@/components/OfflineSync";
+import { chipClass, Stat, StatRow, Th } from "@/components/ui";
 import { currencyInfo } from "@/lib/currencies";
 import type { ConversionView } from "@/lib/fx";
 import { FILTER_STALE_DAYS, isStale, matchesStaleFilter } from "@/lib/staleness";
@@ -65,6 +67,29 @@ function allSkus(brand: BrandView): SkuView[] {
   return brand.variants.flatMap((variant) => variant.skus);
 }
 
+/** Shared table chrome, so the priority list and every brand read identically. */
+function CatalogueTable({ children }: { children: ReactNode }) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[34rem] border-collapse text-left">
+        <thead className="bg-surface-sunken">
+          <tr>
+            <Th className="w-8" />
+            <Th>Product</Th>
+            <Th className="hidden md:table-cell">SKU</Th>
+            <Th align="right">Price</Th>
+            <Th align="center">Stock</Th>
+            <Th align="right" className="hidden md:table-cell">
+              Updated
+            </Th>
+          </tr>
+        </thead>
+        <tbody>{children}</tbody>
+      </table>
+    </div>
+  );
+}
+
 export function PriceDashboard({
   brands,
   fx,
@@ -81,7 +106,6 @@ export function PriceDashboard({
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<FilterKey>("all");
   const [openBrands, setOpenBrands] = useState<Set<string>>(new Set());
-  const [openVariants, setOpenVariants] = useState<Set<string>>(new Set());
 
   // Edits queue here until the brand's Save is tapped (spec §3.2 batch save).
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
@@ -118,6 +142,24 @@ export function PriceDashboard({
 
   /// Rows the user has actually edited this session.
   const touchedIds = useMemo(() => new Set(Object.keys(drafts)), [drafts]);
+
+  /// Headline counts describe the whole catalogue, not the current filter — a
+  /// KPI that moved every time a chip was tapped would tell you nothing.
+  const totals = useMemo(() => {
+    let skus = 0;
+    let priced = 0;
+    let outOfStock = 0;
+    let stale = 0;
+    for (const brand of brands) {
+      for (const sku of allSkus(brand)) {
+        skus += 1;
+        if (sku.singlePrice !== null) priced += 1;
+        if (sku.stockStatus === "out_of_stock") outOfStock += 1;
+        if (isStale(sku.lastUpdatedAt, nowMs)) stale += 1;
+      }
+    }
+    return { skus, priced, outOfStock, stale };
+  }, [brands, nowMs]);
 
   const visible = useMemo(
     () => filterCatalogue(brands, query, filter, nowMs, dirtyIds),
@@ -285,9 +327,7 @@ export function PriceDashboard({
           ? "No changes to save"
           : [
               saved > 0 ? `${saved} ${saved === 1 ? "change" : "changes"} saved` : null,
-              conflicts > 0
-                ? `${conflicts} sent to the admin conflicts queue`
-                : null,
+              conflicts > 0 ? `${conflicts} sent to the admin conflicts queue` : null,
             ]
               .filter(Boolean)
               .join(" · "),
@@ -297,15 +337,35 @@ export function PriceDashboard({
 
   return (
     <div>
-      <div className="sticky top-[57px] z-[5] -mx-4 border-b border-line bg-white/95 px-4 py-3 backdrop-blur">
-        <input
-          type="search"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search brand, variant or SKU code"
-          aria-label="Search brand, variant or SKU code"
-          className="w-full rounded-lg border border-line bg-surface px-3 py-2.5 text-base text-foreground outline-none placeholder:text-muted-soft focus:border-accent"
-        />
+      <div className="sticky top-[57px] z-[5] -mx-4 border-b border-line bg-surface/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6 lg:top-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search brand, variant or SKU code"
+            aria-label="Search brand, variant or SKU code"
+            className="min-w-0 flex-1 basis-64 rounded-lg border border-line bg-surface px-3 py-2.5 text-base text-foreground outline-none placeholder:text-muted-soft focus:border-accent"
+          />
+          {fx.entryOptions.length > 0 ? (
+            <label className="flex shrink-0 items-center gap-2">
+              <span className="text-xs font-medium text-muted">Entering prices in</span>
+              <select
+                value={entryCurrency}
+                onChange={(event) => setEntryCurrency(event.target.value)}
+                aria-label="Currency to enter prices in"
+                className="h-10 rounded-lg border border-line-strong bg-surface px-2 text-sm font-medium text-foreground"
+              >
+                {fx.entryOptions.map((code) => (
+                  <option key={code} value={code}>
+                    {currencyInfo(code).flag} {code}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+        </div>
+
         <div className="mt-2 flex gap-2 overflow-x-auto pb-0.5">
           {FILTERS.map((chip) => (
             <button
@@ -313,40 +373,17 @@ export function PriceDashboard({
               type="button"
               onClick={() => setFilter(chip.key)}
               aria-pressed={filter === chip.key}
-              className={`min-h-9 shrink-0 rounded-full px-3 text-sm font-medium transition ${
-                filter === chip.key
-                  ? "bg-accent text-white"
-                  : "border border-line-strong text-muted hover:bg-surface-sunken"
-              }`}
+              className={`${chipClass(filter === chip.key)} shrink-0`}
             >
               {chip.label}
             </button>
           ))}
         </div>
-        {fx.entryOptions.length > 0 ? (
-          <label className="mt-2 flex items-center gap-2">
-            <span className="shrink-0 text-xs font-medium text-muted">
-              Entering prices in
-            </span>
-            <select
-              value={entryCurrency}
-              onChange={(event) => setEntryCurrency(event.target.value)}
-              aria-label="Currency to enter prices in"
-              className="h-9 min-w-0 flex-1 rounded-lg border border-line-strong bg-white px-2 text-sm font-medium text-foreground-strong dark:bg-accent"
-            >
-              {fx.entryOptions.map((code) => (
-                <option key={code} value={code}>
-                  {currencyInfo(code).flag} {code} — {currencyInfo(code).name}
-                </option>
-              ))}
-            </select>
-          </label>
-        ) : null}
 
         {totalDirty > 0 ? (
-          <p className="mt-2 text-xs font-medium text-sky-700 dark:text-sky-400">
-            {totalDirty} unsaved {totalDirty === 1 ? "change" : "changes"} — open the
-            brand and tap Save.
+          <p className="mt-2 text-xs font-medium text-info-fg">
+            {totalDirty} unsaved {totalDirty === 1 ? "change" : "changes"} — open the brand
+            and tap Save.
           </p>
         ) : null}
       </div>
@@ -354,7 +391,7 @@ export function PriceDashboard({
       {toast ? (
         <div
           role="status"
-          className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-900 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-100"
+          className="mt-3 rounded-lg border border-success-fg/25 bg-success-bg px-3 py-2 text-sm font-medium text-success-fg"
         >
           {toast}{" "}
           <button
@@ -367,109 +404,134 @@ export function PriceDashboard({
         </div>
       ) : null}
 
+      <div className="mt-4">
+        <StatRow>
+          <Stat label="SKUs" value={totals.skus} hint={`${brands.length} brands`} />
+          <Stat
+            label="Priced"
+            value={totals.priced}
+            hint={`${totals.skus - totals.priced} still blank`}
+          />
+          <Stat
+            label="Out of stock"
+            value={totals.outOfStock}
+            tone={totals.outOfStock > 0 ? "danger" : "default"}
+          />
+          <Stat
+            label="Needs update"
+            value={totals.stale}
+            hint={`${FILTER_STALE_DAYS}+ days old`}
+            tone={totals.stale > 0 ? "warning" : "default"}
+          />
+        </StatRow>
+      </div>
+
       {priority.length > 0 ? (
-        <section className="mt-4">
-          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400">
+        <section className="mb-4 overflow-hidden rounded-xl border border-warning-fg/30 bg-surface">
+          <h2 className="bg-warning-bg px-4 py-2 text-xs font-semibold uppercase tracking-wider text-warning-fg">
             Priority checks
           </h2>
-          <ul className="space-y-2">
+          <CatalogueTable>
             {priority.map(({ sku, variant, brand }) => (
-              <li
+              <SkuRow
                 key={sku.id}
-                className="overflow-hidden rounded-xl border border-amber-300 bg-amber-50 dark:border-amber-900/60 dark:bg-amber-950/30"
-              >
-                <SkuRow
-                  sku={sku}
-                  fx={fx}
-                  nowMs={nowMs}
-                  draft={getDraft(sku)}
-                  entryCurrency={entryCurrency}
-                  dirty={dirtyIds.has(sku.id)}
-                  touched={drafts[sku.id] !== undefined}
-                  canManagePhotos={canManagePhotos}
-                  error={fieldErrors[sku.id]}
-                  onChange={(next) => setDraft(sku.id, next)}
-                  label={`${brand.name} · ${variant.name}`}
-                />
-              </li>
+                sku={sku}
+                fx={fx}
+                nowMs={nowMs}
+                draft={getDraft(sku)}
+                entryCurrency={entryCurrency}
+                dirty={dirtyIds.has(sku.id)}
+                touched={touchedIds.has(sku.id)}
+                canManagePhotos={canManagePhotos}
+                error={fieldErrors[sku.id]}
+                onChange={(next) => setDraft(sku.id, next)}
+                label={`${brand.name} · ${variant.name}`}
+              />
             ))}
-          </ul>
+          </CatalogueTable>
         </section>
       ) : null}
 
       {searching ? (
-        <p className="mt-4 text-sm text-muted">
+        <p className="mb-2 text-sm text-muted">
           {totalShown === 1 ? "1 SKU matches" : `${totalShown} SKUs match`}
         </p>
       ) : null}
 
       {visible.length === 0 ? (
-        <p className="mt-6 rounded-lg border border-line px-4 py-8 text-center text-sm text-muted">
+        <p className="rounded-xl border border-dashed border-line px-4 py-10 text-center text-sm text-muted">
           Nothing matches that search.
         </p>
       ) : (
-        <ul className="mt-4 space-y-2.5">
+        <ul className="space-y-2.5">
           {visible.map((brand) => {
             const dirtyCount = dirtyIdsFor(brand.id).length;
             // Never collapse a brand that has unsaved edits — they would become
             // invisible and be lost on Discard without the user realising.
             const open = searching || openBrands.has(brand.id) || dirtyCount > 0;
+            const skus = allSkus(brand);
+            const staleCount = skus.filter((sku) =>
+              isStale(sku.lastUpdatedAt, nowMs),
+            ).length;
 
             return (
               <li
                 key={brand.id}
-                className="overflow-hidden rounded-xl border border-line bg-white dark:bg-accent"
+                className="overflow-hidden rounded-xl border border-line bg-surface shadow-[0_1px_2px_rgba(16,24,40,0.04)]"
               >
                 <button
                   type="button"
                   onClick={() => setOpenBrands((prev) => toggle(prev, brand.id))}
                   aria-expanded={open}
-                  className="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left hover:bg-surface-sunken"
+                  className="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-surface-sunken"
                 >
                   <span
                     aria-hidden
-                    className={`text-muted-soft transition-transform ${open ? "rotate-90" : ""}`}
+                    className={`text-xs text-muted-soft transition-transform ${open ? "rotate-90" : ""}`}
                   >
                     ▶
                   </span>
-                  <span className="flex-1 font-semibold text-foreground">
+                  <span className="flex-1 text-sm font-semibold text-foreground">
                     {brand.name}
                   </span>
                   {dirtyCount > 0 ? (
-                    <span className="rounded-full bg-sky-600 px-2 py-0.5 text-xs font-bold text-white nums">
+                    <span className="nums rounded-full bg-info-bg px-2 py-0.5 text-[11px] font-semibold text-info-fg">
                       {dirtyCount} unsaved
                     </span>
                   ) : null}
-                  <span className="rounded-full bg-surface-sunken px-2 py-0.5 text-xs font-medium text-muted nums">
-                    {allSkus(brand).length}
+                  {staleCount > 0 ? (
+                    <span className="nums rounded-full bg-warning-bg px-2 py-0.5 text-[11px] font-medium text-warning-fg">
+                      {staleCount} stale
+                    </span>
+                  ) : null}
+                  <span className="nums rounded-full bg-surface-sunken px-2 py-0.5 text-[11px] font-medium text-muted">
+                    {skus.length}
                   </span>
                 </button>
 
                 {open ? (
                   <>
-                    <ul className="border-t border-line">
-                      {brand.variants.map((variant) => (
-                        <VariantBlock
-                          key={variant.id}
-                          variant={variant}
-                          fx={fx}
-                          nowMs={nowMs}
-                          getDraft={getDraft}
-                          setDraft={setDraft}
-                          entryCurrency={entryCurrency}
-                          dirtyIds={dirtyIds}
-                          touchedIds={touchedIds}
-                          canManagePhotos={canManagePhotos}
-                          fieldErrors={fieldErrors}
-                          open={
-                            searching ||
-                            openVariants.has(variant.id) ||
-                            variant.skus.some((sku) => dirtyIds.has(sku.id))
-                          }
-                          onToggle={() => setOpenVariants((prev) => toggle(prev, variant.id))}
-                        />
-                      ))}
-                    </ul>
+                    <CatalogueTable>
+                      {brand.variants.flatMap((variant) =>
+                        variant.skus.map((sku) => (
+                          <SkuRow
+                            key={sku.id}
+                            sku={sku}
+                            fx={fx}
+                            nowMs={nowMs}
+                            draft={getDraft(sku)}
+                            entryCurrency={entryCurrency}
+                            dirty={dirtyIds.has(sku.id)}
+                            touched={touchedIds.has(sku.id)}
+                            canManagePhotos={canManagePhotos}
+                            error={fieldErrors[sku.id]}
+                            onChange={(next) => setDraft(sku.id, next)}
+                            label={variant.name}
+                            gender={variant.gender}
+                          />
+                        )),
+                      )}
+                    </CatalogueTable>
                     <BrandSaveBar
                       count={dirtyCount}
                       saving={savingBrand === brand.id}
@@ -488,109 +550,5 @@ export function PriceDashboard({
         </ul>
       )}
     </div>
-  );
-}
-
-function VariantBlock({
-  variant,
-  fx,
-  nowMs,
-  getDraft,
-  setDraft,
-  entryCurrency,
-  dirtyIds,
-  touchedIds,
-  canManagePhotos,
-  fieldErrors,
-  open,
-  onToggle,
-}: {
-  variant: VariantView;
-  fx: ConversionView;
-  nowMs: number;
-  getDraft: (sku: SkuView) => Draft;
-  setDraft: (skuId: string, next: Draft) => void;
-  entryCurrency: string;
-  dirtyIds: ReadonlySet<string>;
-  touchedIds: ReadonlySet<string>;
-  canManagePhotos: boolean;
-  fieldErrors: Record<string, string>;
-  open: boolean;
-  onToggle: () => void;
-}) {
-  if (variant.skus.length === 1) {
-    const sku = variant.skus[0];
-    return (
-      <li className="border-b border-line last:border-b-0">
-        <SkuRow
-          sku={sku}
-          fx={fx}
-          nowMs={nowMs}
-          draft={getDraft(sku)}
-          entryCurrency={entryCurrency}
-          dirty={dirtyIds.has(sku.id)}
-          touched={touchedIds.has(sku.id)}
-          canManagePhotos={canManagePhotos}
-          error={fieldErrors[sku.id]}
-          onChange={(next) => setDraft(sku.id, next)}
-          label={variant.name}
-          gender={variant.gender}
-        />
-      </li>
-    );
-  }
-
-  const anyStale = variant.skus.some((sku) => isStale(sku.lastUpdatedAt, nowMs));
-
-  return (
-    <li className="border-b border-line last:border-b-0">
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={open}
-        className="flex min-h-14 w-full items-center gap-2.5 px-4 py-3 text-left hover:bg-surface-sunken"
-      >
-        <span
-          aria-hidden
-          className={`text-xs text-muted-soft transition-transform ${open ? "rotate-90" : ""}`}
-        >
-          ▶
-        </span>
-        <span className="flex-1">
-          <span className="block font-medium text-foreground">
-            {variant.name}
-          </span>
-          <span className="text-xs text-muted">{variant.gender}</span>
-        </span>
-        {anyStale ? (
-          <span title="Some prices are out of date" className="h-2 w-2 rounded-full bg-amber-500" />
-        ) : null}
-        <span className="rounded-full bg-surface-sunken px-2 py-0.5 text-xs font-medium text-muted nums">
-          {variant.skus.length} sizes
-        </span>
-      </button>
-
-      {open ? (
-        <ul className="bg-surface-sunken/50">
-          {variant.skus.map((sku) => (
-            <li key={sku.id} className="border-t border-line">
-              <SkuRow
-                sku={sku}
-                fx={fx}
-                nowMs={nowMs}
-                draft={getDraft(sku)}
-                entryCurrency={entryCurrency}
-                dirty={dirtyIds.has(sku.id)}
-                touched={touchedIds.has(sku.id)}
-                canManagePhotos={canManagePhotos}
-                error={fieldErrors[sku.id]}
-                onChange={(next) => setDraft(sku.id, next)}
-                indented
-              />
-            </li>
-          ))}
-        </ul>
-      ) : null}
-    </li>
   );
 }

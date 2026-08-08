@@ -6,6 +6,8 @@ import {
   EmptyState,
   PageHeader,
   SectionTitle,
+  Stat,
+  StatRow,
 } from "@/components/ui";
 import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -18,7 +20,7 @@ import {
   VariantToolbar,
 } from "./CatalogueForms";
 
-export const metadata = { title: "Products · Perfume Price Tool" };
+export const metadata = { title: "Products · Aromatic Ghana" };
 
 export default async function CatalogueAdminPage({
   searchParams,
@@ -81,6 +83,19 @@ export default async function CatalogueAdminPage({
           },
         });
 
+  // Headline counts always describe the whole catalogue, including archived
+  // rows, so the tiles don't move when "Show archived" is toggled.
+  const [brandTotal, variantTotal, skuTotal, archivedBrands, archivedVariants, archivedSkus] =
+    await Promise.all([
+      prisma.brand.count(),
+      prisma.variant.count(),
+      prisma.sku.count(),
+      prisma.brand.count({ where: { isActive: false } }),
+      prisma.variant.count({ where: { isActive: false } }),
+      prisma.sku.count({ where: { isActive: false } }),
+    ]);
+  const archivedTotal = archivedBrands + archivedVariants + archivedSkus;
+
   const historyFor = (brand: (typeof brands)[number]) =>
     brand.variants.reduce(
       (total, variant) =>
@@ -104,6 +119,17 @@ export default async function CatalogueAdminPage({
           </Link>
         }
       />
+
+      <StatRow>
+        <Stat label="Brands" value={brandTotal} />
+        <Stat label="Fragrances" value={variantTotal} />
+        <Stat label="Sizes" value={skuTotal} />
+        <Stat
+          label="Archived"
+          value={archivedTotal}
+          hint="brands, fragrances and sizes"
+        />
+      </StatRow>
 
       <Card className="mb-4">
         <SectionTitle>New brand</SectionTitle>

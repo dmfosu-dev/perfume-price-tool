@@ -4,6 +4,30 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import type { ReactNode } from "react";
+import { ThemeSwitcher } from "@/components/ThemeSwitcher";
+
+/**
+ * Brand lockup. The gold in the mark is the only place gold appears — buttons,
+ * links, focus rings and status stay on the theme's accent.
+ */
+function BrandMark({ size = "md" }: { size?: "sm" | "md" }) {
+  const box = size === "sm" ? "h-7 w-7" : "h-8 w-8";
+  return (
+    <span className="flex items-center gap-2">
+      {/* eslint-disable-next-line @next/next/no-img-element -- static brand asset, no optimisation needed */}
+      <img
+        src="/brand/aromatik-logo.png"
+        alt=""
+        aria-hidden
+        style={{ background: "var(--logo-plate)" }}
+        className={`${box} shrink-0 rounded-lg object-contain p-0.5`}
+      />
+      <span className="text-sm font-semibold tracking-tight text-foreground">
+        Aromatic Ghana
+      </span>
+    </span>
+  );
+}
 
 export type NavItem = {
   href: string;
@@ -69,6 +93,9 @@ export function AppShell({
 
   const identity = (
     <div className="border-t border-line px-3 py-3">
+      <div className="mb-3">
+        <ThemeSwitcher />
+      </div>
       <p className="truncate text-sm font-medium text-foreground">{userEmail}</p>
       <p className="mb-2 text-xs capitalize text-muted-soft">{role}</p>
       {signOut}
@@ -88,15 +115,7 @@ export function AppShell({
         >
           ☰
         </button>
-        <span className="flex items-center gap-2 font-semibold tracking-tight text-foreground">
-          <span
-            aria-hidden
-            className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent text-xs font-bold text-white"
-          >
-            P
-          </span>
-          Perfume Price
-        </span>
+        <BrandMark size="sm" />
       </header>
 
       {open ? (
@@ -109,7 +128,7 @@ export function AppShell({
           />
           <aside className="fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-line bg-surface lg:hidden">
             <div className="flex items-center justify-between px-3 py-3">
-              <span className="font-semibold text-foreground">Menu</span>
+              <BrandMark size="sm" />
               <button
                 type="button"
                 onClick={() => setOpen(false)}
@@ -127,16 +146,8 @@ export function AppShell({
 
       {/* Desktop sidebar */}
       <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-line bg-surface lg:flex">
-        <div className="flex items-center gap-2 px-4 py-4">
-          <span
-            aria-hidden
-            className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent text-sm font-bold text-white"
-          >
-            P
-          </span>
-          <span className="font-semibold tracking-tight text-foreground">
-            Perfume Price
-          </span>
+        <div className="px-4 py-4">
+          <BrandMark />
         </div>
         <div className="flex-1 overflow-y-auto px-2">{nav}</div>
         {identity}
