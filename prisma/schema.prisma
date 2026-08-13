@@ -42,6 +42,7 @@ model User {
   verifiedSkus   Sku[] @relation("SkuLastVerifiedBy")
   prioritisedSkus Sku[] @relation("SkuPrioritySetBy")
   localStockSkus Sku[] @relation("SkuLocalStockUpdatedBy")
+  baselineSkus   Sku[] @relation("SkuBaselineUpdatedBy")
 
   priceChanges           PriceHistory[]
   fxRates                FxRate[]
@@ -144,6 +145,25 @@ model Sku {
   prioritySetAt  DateTime?
   prioritySetById String?
 
+  /// Admin's own UAE market research: the price band this SKU has been seen
+  /// selling at at source. This is a yardstick to judge an intermediary's quote
+  /// against, so it is deliberately NOT price history — nothing here was quoted
+  /// by anyone in the field — and it is never sent to an intermediary.
+  ///
+  /// Distinct from CompetitorPrice, which is the Ghanaian retail market we sell
+  /// into. These two answer different questions: "am I being quoted a fair
+  /// source price?" versus "what can I sell it for?".
+  baselineMinPrice Decimal?
+  baselineMaxPrice Decimal?
+  /// Currency the band is recorded in. UAE research means AED in practice, but
+  /// storing it stops a later projection silently comparing AED against SAR.
+  baselineCurrency String?
+  /// Where the figures came from — shop name or URL. One note covers the whole
+  /// band, since both ends normally come from the same survey.
+  baselineNote        String?
+  baselineUpdatedAt   DateTime?
+  baselineUpdatedById String?
+
   /// Admin-maintained local stock level. Deliberately separate from any
   /// customer/order data (spec §7). Null means "never recorded".
   localStockQty          Int?
@@ -163,6 +183,7 @@ model Sku {
   lastVerifiedBy      User?   @relation("SkuLastVerifiedBy", fields: [lastVerifiedById], references: [id])
   prioritySetBy       User?   @relation("SkuPrioritySetBy", fields: [prioritySetById], references: [id])
   localStockUpdatedBy User?   @relation("SkuLocalStockUpdatedBy", fields: [localStockUpdatedById], references: [id])
+  baselineUpdatedBy   User?   @relation("SkuBaselineUpdatedBy", fields: [baselineUpdatedById], references: [id])
 
   history          PriceHistory[]
   discrepancies    DiscrepancyReport[]

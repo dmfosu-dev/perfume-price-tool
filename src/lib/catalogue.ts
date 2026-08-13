@@ -14,6 +14,19 @@ function money(value: unknown): string | null {
   return Number.isFinite(parsed) ? parsed.toFixed(2) : null;
 }
 
+/// The admin's own UAE source-price research. Never populated for an
+/// intermediary — see getCatalogue.
+export type BaselineView = {
+  minPrice: string | null;
+  maxPrice: string | null;
+  currency: string;
+  note: string | null;
+};
+
+/// Currency the research band is assumed to be in when a SKU has none stored
+/// yet. The research is UAE-side, so AED.
+export const DEFAULT_BASELINE_CURRENCY = "AED";
+
 export type SkuView = {
   id: string;
   skuCode: string;
@@ -33,6 +46,10 @@ export type SkuView = {
   priorityNote: string | null;
   lastUpdatedAt: string | null;
   lastUpdatedBy: string | null;
+  /// Null for anyone who may not see the admin's research band. Gating here
+  /// rather than in the component matters: hiding it in the UI would still ship
+  /// the figures inside the RSC payload.
+  baseline: BaselineView | null;
 };
 
 export type VariantView = {
@@ -48,7 +65,36 @@ export type BrandView = {
   variants: VariantView[];
 };
 
-export async function getCatalogue(): Promise<BrandView[]> {
+export async function getCatalogue(
+  /// Admins only. For everyone else the baseline columns are never queried at
+  /// all, so there is nothing in the payload to leak.
+  includeBaseline = false,
+): Promise<BrandView[]> {
+  // Fetched separately rather than folded into the select below: a conditional
+  // select gives Prisma a union return type, and keeping the admin-only columns
+  // in their own query means a careless edit to the main mapping cannot expose
+  // them by accident.
+  const baselineById = new Map<string, BaselineView>();
+  if (includeBaseline) {
+    const rows = await prisma.sku.findMany({
+      select: {
+        id: true,
+        baselineMinPrice: true,
+        baselineMaxPrice: true,
+        baselineCurrency: true,
+        baselineNote: true,
+      },
+    });
+    for (const row of rows) {
+      baselineById.set(row.id, {
+        minPrice: money(row.baselineMinPrice),
+        maxPrice: money(row.baselineMaxPrice),
+        currency: row.baselineCurrency ?? DEFAULT_BASELINE_CURRENCY,
+        note: row.baselineNote,
+      });
+    }
+  }
+
   // One query rather than a flag on Sku: derived state cannot drift out of sync
   // with the conflicts themselves.
   const openConflicts = await prisma.priceConflict.findMany({
@@ -120,6 +166,7 @@ export async function getCatalogue(): Promise<BrandView[]> {
         priorityNote: sku.priorityNote,
         lastUpdatedAt: sku.lastUpdatedAt?.toISOString() ?? null,
         lastUpdatedBy: sku.lastUpdatedBy?.email ?? null,
+        baseline: baselineById.get(sku.id) ?? null,
       })),
     })),
   }));
@@ -143,7 +190,12 @@ export type CatalogueSnapshot = {
   nowMs: number;
 };
 
-export async function getCatalogueSnapshot(): Promise<CatalogueSnapshot> {
-  const [brands, vendors] = await Promise.all([getCatalogue(), getVendorNames()]);
+export async function getCatalogueSnapshot(
+  includeBaseline = false,
+): Promise<CatalogueSnapshot> {
+  const [brands, vendors] = await Promise.all([
+    getCatalogue(includeBaseline),
+    getVendorNames(),
+  ]);
   return { brands, vendors, nowMs: Date.now() };
 }

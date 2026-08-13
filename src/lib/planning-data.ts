@@ -20,6 +20,13 @@ export type PlanningSku = {
   priceCurrency: string | null;
   /// Unit cost converted into the base currency — what the modelling works in.
   costInBase: number | null;
+  /// The admin's own source-market research band, left in its recorded currency
+  /// so the stress-test slider converts it with the same rates as everything
+  /// else. Null when nothing has been researched for this SKU.
+  baselineMin: number | null;
+  baselineMax: number | null;
+  baselineCurrency: string | null;
+  baselineNote: string | null;
   volatility: VolatilityScore | null;
   competitorBest: { competitor: string; price: number; currency: string } | null;
 };
@@ -31,6 +38,12 @@ export type PlanningData = {
   /// Currencies with a rate, for the stress-test controls.
   currencies: string[];
 };
+
+function toNumber(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+  const parsed = Number(String(value));
+  return Number.isFinite(parsed) ? parsed : null;
+}
 
 export async function getPlanningData(): Promise<PlanningData> {
   const settings = await getFxSettings();
@@ -60,6 +73,10 @@ export async function getPlanningData(): Promise<PlanningData> {
       cartonQty: true,
       singlePrice: true,
       priceCurrency: true,
+      baselineMinPrice: true,
+      baselineMaxPrice: true,
+      baselineCurrency: true,
+      baselineNote: true,
       variant: {
         select: { name: true, brand: { select: { name: true } } },
       },
@@ -137,6 +154,10 @@ export async function getPlanningData(): Promise<PlanningData> {
         price,
         priceCurrency: sku.priceCurrency,
         costInBase,
+        baselineMin: toNumber(sku.baselineMinPrice),
+        baselineMax: toNumber(sku.baselineMaxPrice),
+        baselineCurrency: sku.baselineCurrency,
+        baselineNote: sku.baselineNote,
         volatility: volatility(series),
         competitorBest:
           competitors.length === 0

@@ -59,6 +59,40 @@ export function marginAt(price: number, cost: number): number | null {
   return ((price - cost) / price) * 100;
 }
 
+export type BaselineVerdict = "below" | "within" | "above";
+
+export type BaselineComparison = {
+  verdict: BaselineVerdict;
+  /// How far outside the band the quote sits, as a percentage of the edge it
+  /// broke. Zero when the quote is inside the band.
+  deltaPct: number;
+};
+
+/**
+ * Where an intermediary's quote sits against the admin's own source-market
+ * research. Answers "am I being quoted a fair price?", which is a different
+ * question from the competitor comparison ("what can I sell it for?").
+ *
+ * A half-open band still gives a usable answer: research that only recorded a
+ * ceiling can still say the quote is above it.
+ */
+export function compareToBaseline(
+  quote: number,
+  min: number | null,
+  max: number | null,
+): BaselineComparison | null {
+  if (!Number.isFinite(quote) || quote <= 0) return null;
+  if (min === null && max === null) return null;
+
+  if (max !== null && max > 0 && quote > max) {
+    return { verdict: "above", deltaPct: ((quote - max) / max) * 100 };
+  }
+  if (min !== null && min > 0 && quote < min) {
+    return { verdict: "below", deltaPct: ((min - quote) / min) * 100 };
+  }
+  return { verdict: "within", deltaPct: 0 };
+}
+
 export type VolatilityScore = {
   /// Coefficient of variation as a percentage — standard deviation relative to
   /// the mean, so a 5 SAR swing on a 50 SAR bottle outranks the same swing on

@@ -1,7 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireApprovedUser } from "@/lib/auth";
+import { requireAdmin, requireApprovedUser } from "@/lib/auth";
+import { DEFAULT_BASELINE_CURRENCY } from "@/lib/catalogue";
 import { isSupportedCurrency } from "@/lib/currencies";
 import { PRICE_SOURCES, STOCK_STATUSES, type PriceSource, type StockStatus } from "@/lib/enums";
 import { getFxSettings, getLatestRates } from "@/lib/fx";
@@ -359,6 +360,64 @@ export async function verifyPrice(skuId: string): Promise<SaveResult> {
       },
     }),
   ]);
+
+  revalidatePath("/dashboard");
+  return { ok: true, savedCount: 1 };
+}
+
+/**
+ * Records the admin's own UAE source-price research for one SKU.
+ *
+ * Deliberately does NOT touch PriceHistory or lastUpdatedAt. That log is "what
+ * an intermediary was quoted, by whom, when, in which currency", and it feeds
+ * the CSV export; desk research belongs to neither. Writing it there would also
+ * make every SKU look freshly checked and defeat the staleness filter.
+ *
+ * Kept out of savePriceEdits for the same reason, plus that action is reachable
+ * by intermediaries — this one is admin-only end to end.
+ */
+export async function saveBaseline(
+  skuId: string,
+  minPriceRaw: string,
+  maxPriceRaw: string,
+  note: string,
+): Promise<SaveResult> {
+  const user = await requireAdmin();
+
+  const min = parsePrice(minPriceRaw ?? "", "Baseline minimum");
+  if (!min.ok) return { ok: false, error: min.error };
+  const max = parsePrice(maxPriceRaw ?? "", "Baseline maximum");
+  if (!max.ok) return { ok: false, error: max.error };
+
+  // A band whose floor sits above its ceiling is a typo, and silently storing
+  // it would quietly skew every projection built on top of it later.
+  if (min.value !== null && max.value !== null && Number(min.value) > Number(max.value)) {
+    return { ok: false, error: "The minimum is higher than the maximum." };
+  }
+
+  const trimmedNote = (note ?? "").trim();
+  if (trimmedNote.length > 500) {
+    return { ok: false, error: "That note is too long (500 characters max)." };
+  }
+
+  const sku = await prisma.sku.findUnique({ where: { id: skuId }, select: { id: true } });
+  if (!sku) return { ok: false, error: "That product no longer exists." };
+
+  const cleared = min.value === null && max.value === null;
+
+  await prisma.sku.update({
+    where: { id: skuId },
+    data: {
+      baselineMinPrice: min.value,
+      baselineMaxPrice: max.value,
+      // Clearing both figures drops the currency too, rather than leaving a
+      // label attached to nothing.
+      baselineCurrency: cleared ? null : DEFAULT_BASELINE_CURRENCY,
+      baselineNote: trimmedNote === "" ? null : trimmedNote,
+      baselineUpdatedAt: cleared && trimmedNote === "" ? null : new Date(),
+      baselineUpdatedById: cleared && trimmedNote === "" ? null : user.id,
+    },
+  });
 
   revalidatePath("/dashboard");
   return { ok: true, savedCount: 1 };

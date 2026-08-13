@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { reportDiscrepancy, verifyPrice } from "@/app/actions/prices";
+import { reportDiscrepancy, saveBaseline, verifyPrice } from "@/app/actions/prices";
 import type { SkuView } from "@/lib/catalogue";
 import { PhotoUpload } from "@/components/PhotoUpload";
 import { StatusBadge } from "@/components/ui";
@@ -121,6 +121,35 @@ export function SkuRow({
   const [reporting, setReporting] = useState(false);
   const [note, setNote] = useState("");
   const [manualOpen, setManualOpen] = useState(false);
+
+  // The admin's research band is separate state from `draft`: it saves on its
+  // own action rather than riding the brand's batch save, because it must not
+  // reach PriceHistory. See saveBaseline.
+  const baseline = sku.baseline;
+  const [baseMin, setBaseMin] = useState(baseline?.minPrice ?? "");
+  const [baseMax, setBaseMax] = useState(baseline?.maxPrice ?? "");
+  const [baseNote, setBaseNote] = useState(baseline?.note ?? "");
+  const [baseSaving, setBaseSaving] = useState(false);
+  const [baseNotice, setBaseNotice] = useState<string | null>(null);
+  const [baseError, setBaseError] = useState<string | null>(null);
+
+  const baselineDirty =
+    baseline !== null &&
+    (baseMin.trim() !== (baseline.minPrice ?? "") ||
+      baseMax.trim() !== (baseline.maxPrice ?? "") ||
+      baseNote.trim() !== (baseline.note ?? ""));
+
+  function submitBaseline() {
+    setBaseNotice(null);
+    setBaseError(null);
+    setBaseSaving(true);
+    startTransition(async () => {
+      const result = await saveBaseline(sku.id, baseMin, baseMax, baseNote);
+      setBaseSaving(false);
+      if (result.ok) setBaseNotice("Research saved");
+      else setBaseError(result.error ?? "Could not save.");
+    });
+  }
 
   // A rejected field lives in the drawer, so force it open rather than reporting
   // an error about a control the user cannot see.
@@ -263,8 +292,14 @@ export function SkuRow({
           <td colSpan={SKU_COLUMNS} className="p-0">
             <div className="border-l-2 border-accent bg-surface-sunken px-4 py-3.5">
               {/* inputMode="decimal" gives a numeric keypad (spec §3.2). The
-                  max width stops four fields stretching across a wide table. */}
-              <div className="flex max-w-2xl flex-wrap items-end gap-2">
+                  max width stops four fields stretching across a wide table;
+                  an admin has two more fields, so the row uses the full width
+                  rather than squeezing them. */}
+              <div
+                className={`flex flex-wrap items-end gap-2 ${
+                  baseline === null ? "max-w-2xl" : ""
+                }`}
+              >
                 <label className="flex-1 basis-32">
                   <span className="mb-1 block text-xs font-medium text-muted">
                     Price ({rowCurrency})
@@ -329,6 +364,42 @@ export function SkuRow({
                     className={cellInput}
                   />
                 </label>
+
+                {baseline !== null ? (
+                  <>
+                    <span aria-hidden className="mx-1 h-11 w-px self-end bg-line-strong" />
+                    <label className="w-28">
+                      <span className="mb-1 block text-xs font-medium text-muted">
+                        UAE min ({baseline.currency})
+                      </span>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        enterKeyHint="done"
+                        value={baseMin}
+                        onChange={(event) => setBaseMin(event.target.value)}
+                        placeholder="—"
+                        aria-label={`My researched UAE minimum price for ${sku.skuCode}`}
+                        className={cellInput}
+                      />
+                    </label>
+                    <label className="w-28">
+                      <span className="mb-1 block text-xs font-medium text-muted">
+                        UAE max ({baseline.currency})
+                      </span>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        enterKeyHint="done"
+                        value={baseMax}
+                        onChange={(event) => setBaseMax(event.target.value)}
+                        placeholder="—"
+                        aria-label={`My researched UAE maximum price for ${sku.skuCode}`}
+                        className={cellInput}
+                      />
+                    </label>
+                  </>
+                ) : null}
               </div>
 
               <p className="mt-2 font-mono text-[11px] text-muted-soft md:hidden">
@@ -347,6 +418,53 @@ export function SkuRow({
                   Was quoted in {sku.priceCurrency} — saving records this as{" "}
                   {currencyInfo(entryCurrency).code}.
                 </p>
+              ) : null}
+
+              {baseline !== null ? (
+                <div className="mt-2.5">
+                  <label className="block">
+                    <span className="mb-1 block text-xs font-medium text-muted">
+                      Where I saw the UAE prices (shop or link)
+                    </span>
+                    <input
+                      type="text"
+                      value={baseNote}
+                      onChange={(event) => setBaseNote(event.target.value)}
+                      placeholder="e.g. Grand Stores, Dubai Mall — or a website address"
+                      aria-label={`Source of my researched UAE prices for ${sku.skuCode}`}
+                      maxLength={500}
+                      className={`${cellInput} max-w-2xl`}
+                    />
+                  </label>
+
+                  <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <button
+                      type="button"
+                      onClick={submitBaseline}
+                      disabled={baseSaving || !baselineDirty}
+                      className="min-h-9 rounded-lg border border-line-strong bg-surface px-3 text-xs font-semibold text-foreground transition hover:bg-surface-sunken disabled:opacity-50"
+                    >
+                      {baseSaving ? "Saving…" : "Save my research"}
+                    </button>
+                    {/* Says so out loud because these fields sit in the same
+                        drawer as the intermediary's, and the brand's Save does
+                        not cover them. */}
+                    <span className="text-[11px] text-muted-soft">
+                      Admin only — intermediaries never see this, and it is saved
+                      separately from the brand&apos;s Save.
+                    </span>
+                    {baseNotice ? (
+                      <span className="text-xs font-medium text-success-fg">
+                        {baseNotice}
+                      </span>
+                    ) : null}
+                    {baseError ? (
+                      <span role="alert" className="text-xs font-medium text-danger-fg">
+                        {baseError}
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
               ) : null}
 
               {/* Large tap targets — this is the most-used control (spec §3.2). */}

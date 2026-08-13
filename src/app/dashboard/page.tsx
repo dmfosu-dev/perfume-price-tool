@@ -9,7 +9,8 @@ export const metadata = { title: "Catalogue · Aromatic Ghana" };
 export default async function DashboardPage() {
   const user = await requireApprovedUser();
 
-  const { brands, vendors, nowMs } = await getCatalogueSnapshot();
+  const isAdmin = user.role === "admin";
+  const { brands, vendors, nowMs } = await getCatalogueSnapshot(isAdmin);
   const { health: fxHealth, conversion } = await getFxStatus();
 
   const hasFx = conversion.displayOrder.length > 0;
@@ -39,7 +40,7 @@ export default async function DashboardPage() {
         fx={conversion}
         vendors={vendors}
         nowMs={nowMs}
-        canManagePhotos={user.role === "admin"}
+        canManagePhotos={isAdmin}
       />
 
       <div className="mt-6 space-y-3">

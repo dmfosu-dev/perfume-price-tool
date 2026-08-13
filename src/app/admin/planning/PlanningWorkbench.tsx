@@ -5,6 +5,7 @@ import { chipClass } from "@/components/ui";
 import { convertAmount, currencyInfo, formatMoney } from "@/lib/currencies";
 import type { PlanningData, PlanningSku } from "@/lib/planning-data";
 import {
+  compareToBaseline,
   landedCost,
   marginAt,
   volatilityBand,
@@ -78,8 +79,11 @@ export function PlanningWorkbench({
     return next;
   }, [data.rates, data.baseCurrency, stressPct]);
 
-  /// Costs recomputed under the stressed rates.
-  const priced = useMemo(
+  /// Costs recomputed under the stressed rates. A SKU with no quote but with a
+  /// research band is kept: modelling that band is the point of recording it,
+  /// and dropping it would make the research look like it did nothing until an
+  /// intermediary happened to quote.
+  const modelled = useMemo(
     () =>
       data.skus
         .map((sku) => {
@@ -89,7 +93,12 @@ export function PlanningWorkbench({
               : convertAmount(sku.price, sku.priceCurrency, data.baseCurrency, stressedRates);
           return { sku, cost };
         })
-        .filter((row): row is { sku: PlanningSku; cost: number } => row.cost !== null),
+        .filter(
+          (row) =>
+            row.cost !== null ||
+            row.sku.baselineMin !== null ||
+            row.sku.baselineMax !== null,
+        ),
     [data.skus, data.baseCurrency, stressedRates],
   );
 
@@ -191,14 +200,14 @@ export function PlanningWorkbench({
             </label>
           </div>
 
-          {priced.length === 0 ? (
+          {modelled.length === 0 ? (
             <Empty />
           ) : (
             <ul className="space-y-2">
-              {priced.map(({ sku, cost }) => {
-                const result = landedCost(cost, inputs);
+              {modelled.map(({ sku, cost }) => {
+                const result = cost === null ? null : landedCost(cost, inputs);
                 const retail =
-                  result.suggestedRetail === null
+                  result === null || result.suggestedRetail === null
                     ? null
                     : convertAmount(
                         result.suggestedRetail,
@@ -217,7 +226,7 @@ export function PlanningWorkbench({
                         stressedRates,
                       );
                 const competitorMargin =
-                  competitorInBase === null
+                  competitorInBase === null || result === null
                     ? null
                     : marginAt(competitorInBase, result.total);
 
@@ -227,20 +236,26 @@ export function PlanningWorkbench({
                     className="rounded-xl border border-line bg-surface p-3"
                   >
                     <SkuHeading sku={sku} />
-                    <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-sm sm:grid-cols-4">
-                      <Stat label="Goods" value={formatMoney(data.baseCurrency, result.goods)} />
-                      <Stat label="Duty" value={formatMoney(data.baseCurrency, result.duty)} />
-                      <Stat
-                        label="Landed"
-                        value={formatMoney(data.baseCurrency, result.total)}
-                        strong
-                      />
-                      <Stat
-                        label={`Retail (${sellCurrency})`}
-                        value={retail === null ? "—" : formatMoney(sellCurrency, retail)}
-                        strong
-                      />
-                    </dl>
+                    {result === null ? (
+                      <p className="mt-1.5 text-xs text-muted">
+                        No intermediary quote yet — modelled from my research alone.
+                      </p>
+                    ) : (
+                      <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-sm sm:grid-cols-4">
+                        <Stat label="Goods" value={formatMoney(data.baseCurrency, result.goods)} />
+                        <Stat label="Duty" value={formatMoney(data.baseCurrency, result.duty)} />
+                        <Stat
+                          label="Landed"
+                          value={formatMoney(data.baseCurrency, result.total)}
+                          strong
+                        />
+                        <Stat
+                          label={`Retail (${sellCurrency})`}
+                          value={retail === null ? "—" : formatMoney(sellCurrency, retail)}
+                          strong
+                        />
+                      </dl>
+                    )}
                     {competitor !== null && competitorMargin !== null ? (
                       <p className="mt-1.5 text-xs text-muted">
                         Cheapest competitor {competitor.competitor} at{" "}
@@ -256,6 +271,16 @@ export function PlanningWorkbench({
                         </span>
                       </p>
                     ) : null}
+
+                    <BaselinePanel
+                      sku={sku}
+                      inputs={inputs}
+                      baseCurrency={data.baseCurrency}
+                      sellCurrency={sellCurrency}
+                      rates={stressedRates}
+                      competitorInBase={competitorInBase}
+                      competitorName={competitor?.competitor ?? null}
+                    />
                   </li>
                 );
               })}
@@ -441,6 +466,153 @@ function RestockForecaster({
   );
 }
 
+/**
+ * The third leg of the comparison: the admin's own source-market research.
+ *
+ * The quoted price says what one intermediary is asking today; the competitor
+ * price says what Ghana will pay. This says what the goods are actually worth
+ * at source, which is the only one of the three that can tell you a quote is
+ * simply too high. Modelled as a band rather than a point, so landed cost and
+ * retail come out as ranges.
+ */
+function BaselinePanel({
+  sku,
+  inputs,
+  baseCurrency,
+  sellCurrency,
+  rates,
+  competitorInBase,
+  competitorName,
+}: {
+  sku: PlanningSku;
+  inputs: CostInputs;
+  baseCurrency: string;
+  sellCurrency: string;
+  rates: Record<string, number>;
+  competitorInBase: number | null;
+  competitorName: string | null;
+}) {
+  const currency = sku.baselineCurrency;
+  if (currency === null || (sku.baselineMin === null && sku.baselineMax === null)) {
+    return null;
+  }
+
+  const toBase = (value: number | null) =>
+    value === null ? null : convertAmount(value, currency, baseCurrency, rates);
+
+  const minBase = toBase(sku.baselineMin);
+  const maxBase = toBase(sku.baselineMax);
+  if (minBase === null && maxBase === null) {
+    return (
+      <p className="mt-2 text-xs text-warning-fg">
+        No {baseCurrency} rate for {currency}, so the research band cannot be modelled.
+      </p>
+    );
+  }
+
+  // A half-open band collapses to a single figure rather than being discarded.
+  const lowCost = landedCost(minBase ?? maxBase!, inputs);
+  const highCost = landedCost(maxBase ?? minBase!, inputs);
+
+  const retail = (value: number | null) =>
+    value === null ? null : convertAmount(value, baseCurrency, sellCurrency, rates);
+  const lowRetail = retail(lowCost.suggestedRetail);
+  const highRetail = retail(highCost.suggestedRetail);
+
+  const range = (low: number, high: number, code: string) =>
+    Math.abs(high - low) < 0.005
+      ? formatMoney(code, low)
+      : `${formatMoney(code, low)} – ${formatMoney(code, high)}`;
+
+  const comparison =
+    sku.price === null || sku.priceCurrency === null
+      ? null
+      : compareToBaseline(
+          convertAmount(sku.price, sku.priceCurrency, currency, rates) ?? NaN,
+          sku.baselineMin,
+          sku.baselineMax,
+        );
+
+  const verdictTone =
+    comparison === null
+      ? "bg-surface-sunken text-muted"
+      : comparison.verdict === "above"
+        ? "bg-danger-bg text-danger-fg"
+        : comparison.verdict === "below"
+          ? "bg-success-bg text-success-fg"
+          : "bg-surface-sunken text-muted";
+
+  const verdictLabel =
+    comparison === null
+      ? null
+      : comparison.verdict === "within"
+        ? "quote is within my band"
+        : `quote is ${comparison.deltaPct.toFixed(1)}% ${comparison.verdict} my band`;
+
+  // Margin the competitor price would yield if we sourced at the band instead
+  // of at the quote — cheapest sourcing gives the best margin, hence the swap.
+  const marginHigh =
+    competitorInBase === null ? null : marginAt(competitorInBase, lowCost.total);
+  const marginLow =
+    competitorInBase === null ? null : marginAt(competitorInBase, highCost.total);
+
+  return (
+    <div className="mt-2 rounded-lg border border-line bg-surface-sunken px-3 py-2">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-soft">
+          My {currency} research
+        </span>
+        <span className="nums text-xs font-medium text-foreground">
+          {range(sku.baselineMin ?? sku.baselineMax!, sku.baselineMax ?? sku.baselineMin!, currency)}
+        </span>
+        {verdictLabel ? (
+          <span
+            className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${verdictTone}`}
+          >
+            {verdictLabel}
+          </span>
+        ) : null}
+      </div>
+
+      <dl className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1 text-sm">
+        <Stat
+          label="Landed at band"
+          value={range(lowCost.total, highCost.total, baseCurrency)}
+          strong
+        />
+        <Stat
+          label={`Retail at band (${sellCurrency})`}
+          value={
+            lowRetail === null || highRetail === null
+              ? "—"
+              : range(lowRetail, highRetail, sellCurrency)
+          }
+          strong
+        />
+      </dl>
+
+      {marginLow !== null && marginHigh !== null && competitorName !== null ? (
+        <p className="mt-1.5 text-xs text-muted">
+          Sourced at this band, {competitorName}&apos;s price gives margin{" "}
+          <span
+            className={
+              marginLow < 0 ? "font-semibold text-danger-fg" : "font-semibold text-success-fg"
+            }
+          >
+            {marginLow.toFixed(1)}% – {marginHigh.toFixed(1)}%
+          </span>
+        </p>
+      ) : null}
+
+      {sku.baselineNote ? (
+        <p className="mt-1 truncate text-[11px] text-muted-soft" title={sku.baselineNote}>
+          Source: {sku.baselineNote}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 function SkuHeading({ sku }: { sku: PlanningSku }) {
   return (
     <>
@@ -485,7 +657,8 @@ function Stat({
 function Empty() {
   return (
     <p className="rounded-xl border border-line px-4 py-8 text-center text-sm text-muted">
-      No priced products yet. Enter prices on the catalogue first.
+      Nothing to model yet. Enter prices on the catalogue, or record your own source-market
+      research against a product there.
     </p>
   );
 }
