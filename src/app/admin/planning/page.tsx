@@ -16,18 +16,33 @@ export default async function PlanningPage() {
     prisma.variant.findMany({
       where: { isActive: true, brand: { isActive: true } },
       orderBy: [{ brand: { sortOrder: "asc" } }, { name: "asc" }],
-      select: { id: true, name: true, brand: { select: { name: true } } },
+      select: {
+        id: true,
+        name: true,
+        brand: { select: { name: true } },
+        // Sizes come along so a competitor price can be pinned to one: the
+        // 100ml and 150ml of the same fragrance are different products.
+        skus: {
+          where: { isActive: true },
+          orderBy: [{ sizeMl: "asc" }, { concentration: "asc" }],
+          select: { id: true, sizeMl: true, concentration: true },
+        },
+      },
     }),
     prisma.competitorPrice.findMany({
       orderBy: { observedAt: "desc" },
       take: 25,
       select: {
         id: true,
+        variantId: true,
+        skuId: true,
         competitor: true,
         price: true,
         currency: true,
+        notes: true,
         observedAt: true,
         variant: { select: { name: true, brand: { select: { name: true } } } },
+        sku: { select: { sizeMl: true, concentration: true } },
       },
     }),
   ]);
@@ -67,13 +82,24 @@ export default async function PlanningPage() {
             variantOptions={variantRows.map((row) => ({
               id: row.id,
               label: `${row.brand.name} · ${row.name}`,
+              sizes: row.skus.map((sku) => ({
+                id: sku.id,
+                label: `${sku.sizeMl}ml · ${sku.concentration}`,
+              })),
             }))}
             recentCompetitors={competitorRows.map((row) => ({
               id: row.id,
+              variantId: row.variantId,
+              skuId: row.skuId,
               competitor: row.competitor,
               price: Number(String(row.price)),
               currency: row.currency,
+              notes: row.notes,
               variantLabel: `${row.variant.brand.name} · ${row.variant.name}`,
+              sizeLabel:
+                row.sku === null
+                  ? null
+                  : `${row.sku.sizeMl}ml · ${row.sku.concentration}`,
               observedAt: row.observedAt.toLocaleDateString("en-GB", {
                 day: "numeric",
                 month: "short",

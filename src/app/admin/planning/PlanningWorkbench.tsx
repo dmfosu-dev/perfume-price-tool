@@ -11,7 +11,12 @@ import {
   volatilityBand,
   type CostInputs,
 } from "@/lib/planning";
-import { CompetitorPanel, SaveAssumptionsForm } from "./CompetitorPanel";
+import {
+  CompetitorPanel,
+  SaveAssumptionsForm,
+  type CompetitorRow,
+  type VariantOption,
+} from "./CompetitorPanel";
 
 type Tab = "margin" | "restock" | "volatility" | "competitors";
 
@@ -35,15 +40,8 @@ export function PlanningWorkbench({
 }: {
   data: PlanningData;
   initialCosts: CostInputs;
-  variantOptions: { id: string; label: string }[];
-  recentCompetitors: {
-    id: string;
-    competitor: string;
-    price: number;
-    currency: string;
-    variantLabel: string;
-    observedAt: string;
-  }[];
+  variantOptions: VariantOption[];
+  recentCompetitors: CompetitorRow[];
 }) {
   const [tab, setTab] = useState<Tab>("margin");
   const [costs, setCosts] = useState({

@@ -126,13 +126,16 @@ export async function getPlanningData(): Promise<PlanningData> {
         })
         .filter((value): value is number => value !== null);
 
-      // A row pinned to this exact size wins; otherwise fall back to the
-      // variant-wide observation.
-      const competitors = competitorRows
-        .filter(
-          (row) =>
-            row.skuId === sku.id || (row.skuId === null && row.variantId === sku.variantId),
-        )
+      // Rows pinned to this exact size win outright; the variant-wide ones are
+      // only a fallback for sizes nobody has priced individually. Pooling the
+      // two and taking the cheapest — which is what this did before sizes could
+      // be recorded from the UI — let a cheap 100ml observation set the
+      // benchmark for the 150ml sitting beside it.
+      const sizeSpecific = competitorRows.filter((row) => row.skuId === sku.id);
+      const variantWide = competitorRows.filter(
+        (row) => row.skuId === null && row.variantId === sku.variantId,
+      );
+      const competitors = (sizeSpecific.length > 0 ? sizeSpecific : variantWide)
         .map((row) => ({
           competitor: row.competitor,
           price: Number(String(row.price)),
