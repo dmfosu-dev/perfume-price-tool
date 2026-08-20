@@ -160,6 +160,49 @@ instructions. HTTPS is issued automatically.
 
 ---
 
+## Database exposure (Supabase "RLS disabled in public" advisory)
+
+Supabase serves every table in the `public` schema over PostgREST at
+`https://<ref>.supabase.co/rest/v1/`. Reaching it needs the anon (publishable)
+key, and **Supabase treats that key as public** — it is designed to be shipped
+in browsers. So "the key is not published anywhere" is not a security control.
+
+This app never uses PostgREST. It reaches Postgres directly through Prisma as
+the `postgres` role, and `supabase-js` is used server-side only, with the
+service-role key, purely for Storage. Both `postgres` and `service_role` have
+`rolbypassrls = true`.
+
+Two migrations close this off:
+
+- RLS is enabled on every table in `public`, with no policies attached, so
+  `anon` and `authenticated` are denied all row access.
+- Every object privilege is revoked from `anon` and `authenticated`, and the
+  schema's default privileges no longer re-grant them. **The revoke is the
+  important half:** RLS does not apply to `TRUNCATE`, so with the grants left
+  in place anyone holding the anon key could still empty every table.
+
+`anon` keeps `USAGE` on the schema itself, inherited from the `PUBLIC`
+pseudo-role. That was left alone on purpose: `supabase_admin`,
+`supabase_storage_admin` and `authenticator` inherit theirs the same way, so
+revoking it from `PUBLIC` risks breaking Storage, and it buys nothing — schema
+`USAGE` only permits looking an object up, and every privilege on the objects
+themselves is gone.
+
+**When you add a table**, enable RLS on it:
+
+```sql
+ALTER TABLE public."YourTable" ENABLE ROW LEVEL SECURITY;
+```
+
+Prisma will not do this for you, and Supabase will email you an advisory if you
+forget. The data is still unreachable without it — new tables no longer receive
+grants — but keeping RLS on everything keeps the advisory clean and means the
+protection does not rest on a single control.
+
+If you ever want client-side `supabase-js` against these tables, you will need
+to grant privileges back **and** write RLS policies first. Do not do one without
+the other.
+
 ## Things worth knowing
 
 **Photos.** With Supabase Storage configured, uploads go to the bucket. With
